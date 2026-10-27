@@ -1,23 +1,17 @@
-# Plasvora — Team Handoff
+# plasvora
 
-## Documents
-- `Plasvora_PRD.md`: product description, feature scope, tech stack, MVVM structure, MVP acceptance criteria.
-- `design.md`: UI system and screen-by-screen design direction based on the supplied references.
-- `Prompt_Google_Stitch_Plasvora.md`: paste into Google Stitch to produce mobile UI designs.
-- `Prompt_Antigravity_Plasvora.md`: give to Antigravity for Flutter implementation.
-- `api_contract.md`: draft API agreement between Flutter and Laravel developers.
+A new Flutter project.
 
-## Agreed stack
-- Mobile: Flutter + Dart
-- Frontend architecture: pragmatic MVVM
-- Backend: PHP + Laravel REST API (teammate)
-- Database: MySQL (teammate)
-- Prototype can use mock repositories until agreed API endpoints are ready.
+## Getting Started
 
-## Suggested workflow
-1. Use the Google Stitch prompt to design screens, then compare the output against `design.md`.
-2. Keep the existing Flutter project root; don't regenerate project files unnecessarily.
-3. Flutter developer builds Views/ViewModels/Models/Repositories and mock data.
-4. Backend developer builds Laravel endpoints and MySQL schema using `api_contract.md` as a draft.
-5. Agree changes to API contract before integration.
-6. From Flutter project root run `dart format .`, `flutter pub get`, `flutter analyze`, and `flutter test`; report actual outcomes.
+This project is a starting point for a Flutter application.
+
+A few resources to get you started if this is your first Flutter project:
+
+- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
+- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
+- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+
+For help getting started with Flutter development, view the
+[online documentation](https://docs.flutter.dev/), which offers tutorials,
+samples, guidance on mobile development, and a full API reference.
