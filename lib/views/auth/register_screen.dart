@@ -69,7 +69,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (success) {
       if (widget.onRegisterSuccess != null) {
         widget.onRegisterSuccess!();
-      } else {
+      } else if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop(true);
       }
     } else {

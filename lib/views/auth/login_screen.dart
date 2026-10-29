@@ -47,7 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (success) {
       if (widget.onLoginSuccess != null) {
         widget.onLoginSuccess!();
-      } else {
+      } else if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop(true);
       }
     } else {
