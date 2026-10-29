@@ -1,9 +1,133 @@
 import '../core/constants/app_assets.dart';
+import '../core/network/api_client.dart';
+import '../core/network/api_config.dart';
 import '../models/material_listing.dart';
 
 abstract class MaterialRepository {
   Future<List<MaterialListing>> getMaterials({String? category, String? query});
+  Future<MaterialListing> getMaterialDetail(int id);
+  Future<MaterialListing> createMaterial({
+    required String name,
+    required String category,
+    required double weightKg,
+    required String condition,
+    required int price,
+    required bool isFree,
+    required String generalLocation,
+    required String description,
+  });
   Future<void> toggleFavorite(int id);
+}
+
+class ApiMaterialRepository implements MaterialRepository {
+  final ApiClient apiClient;
+  final Set<int> _favoriteIds = {};
+
+  ApiMaterialRepository({required this.apiClient});
+
+  @override
+  Future<List<MaterialListing>> getMaterials({
+    String? category,
+    String? query,
+  }) async {
+    final params = <String>[];
+    if (category != null && category.isNotEmpty && category != 'Semua') {
+      params.add('category=${Uri.encodeQueryComponent(category)}');
+    }
+    if (query != null && query.trim().isNotEmpty) {
+      params.add('q=${Uri.encodeQueryComponent(query.trim())}');
+    }
+
+    final queryString = params.isNotEmpty ? '?${params.join('&')}' : '';
+    final url = '${ApiConfig.materials}$queryString';
+
+    final response = await apiClient.get(url, requiresAuth: false);
+    if (response is Map<String, dynamic> && response['data'] is List) {
+      final list = (response['data'] as List)
+          .map((item) {
+            final listing = MaterialListing.fromJson(item as Map<String, dynamic>);
+            return listing.copyWith(
+              isFavorited: _favoriteIds.contains(listing.id),
+              localAsset: _resolveLocalFallbackAsset(listing.category),
+            );
+          })
+          .toList();
+      return list;
+    }
+    throw ApiException('Format respons materials tidak valid');
+  }
+
+  @override
+  Future<MaterialListing> getMaterialDetail(int id) async {
+    final response = await apiClient.get(
+      ApiConfig.materialDetail(id),
+      requiresAuth: false,
+    );
+    if (response is Map<String, dynamic> && response['data'] != null) {
+      final listing = MaterialListing.fromJson(
+        response['data'] as Map<String, dynamic>,
+      );
+      return listing.copyWith(
+        isFavorited: _favoriteIds.contains(listing.id),
+        localAsset: _resolveLocalFallbackAsset(listing.category),
+      );
+    }
+    throw ApiException('Material tidak ditemukan');
+  }
+
+  @override
+  Future<MaterialListing> createMaterial({
+    required String name,
+    required String category,
+    required double weightKg,
+    required String condition,
+    required int price,
+    required bool isFree,
+    required String generalLocation,
+    required String description,
+  }) async {
+    final response = await apiClient.post(
+      ApiConfig.materials,
+      body: {
+        'name': name,
+        'category': category,
+        'weight_kg': weightKg,
+        'condition': condition,
+        'price': price,
+        'is_free': isFree,
+        'general_location': generalLocation,
+        'description': description,
+      },
+      requiresAuth: true,
+    );
+
+    if (response is Map<String, dynamic> && response['data'] != null) {
+      return MaterialListing.fromJson(response['data'] as Map<String, dynamic>);
+    }
+    throw ApiException('Gagal membuat listing material');
+  }
+
+  @override
+  Future<void> toggleFavorite(int id) async {
+    if (_favoriteIds.contains(id)) {
+      _favoriteIds.remove(id);
+    } else {
+      _favoriteIds.add(id);
+    }
+  }
+
+  String? _resolveLocalFallbackAsset(String category) {
+    switch (category.toUpperCase()) {
+      case 'HDPE':
+        return AppAssets.marketplaceHdpeCaps;
+      case 'PET':
+        return AppAssets.marketplacePetFlakes;
+      case 'PP':
+        return AppAssets.marketplacePpContainers;
+      default:
+        return AppAssets.marketplaceHdpeJerrycan;
+    }
+  }
 }
 
 class MockMaterialRepository implements MaterialRepository {
@@ -112,5 +236,41 @@ class MockMaterialRepository implements MaterialRepository {
       final item = _items[index];
       _items[index] = item.copyWith(isFavorited: !item.isFavorited);
     }
+  }
+
+  @override
+  Future<MaterialListing> getMaterialDetail(int id) async {
+    final item = _items.firstWhere(
+      (element) => element.id == id,
+      orElse: () => _items.first,
+    );
+    return item;
+  }
+
+  @override
+  Future<MaterialListing> createMaterial({
+    required String name,
+    required String category,
+    required double weightKg,
+    required String condition,
+    required int price,
+    required bool isFree,
+    required String generalLocation,
+    required String description,
+  }) async {
+    final newItem = MaterialListing(
+      id: DateTime.now().millisecondsSinceEpoch,
+      name: name,
+      category: category,
+      weightKg: weightKg,
+      condition: condition,
+      price: price,
+      isFree: isFree,
+      generalLocation: generalLocation,
+      description: description,
+      createdAt: DateTime.now(),
+    );
+    _items.insert(0, newItem);
+    return newItem;
   }
 }

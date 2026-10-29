@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-
 import '../models/material_listing.dart';
 import '../repositories/material_repository.dart';
 
@@ -28,11 +27,15 @@ class MarketplaceViewModel extends ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  String? _errorMessage;
+  String? get errorMessage => _errorMessage;
+
   List<MaterialListing> _listings = [];
   List<MaterialListing> get listings => _listings;
 
   Future<void> loadListings() async {
     _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
 
     try {
@@ -41,8 +44,9 @@ class MarketplaceViewModel extends ChangeNotifier {
         query: _searchQuery,
       );
       _listings = items;
-    } catch (_) {
-      // Fallback
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('ApiException: ', '');
+      _listings = [];
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -63,10 +67,48 @@ class MarketplaceViewModel extends ChangeNotifier {
 
   Future<void> toggleFavorite(int id) async {
     await materialRepository.toggleFavorite(id);
-    final index = _listings.indexWhere((item) => item.id == id);
+    final index = _listings.indexWhere((element) => element.id == id);
     if (index != -1) {
       final item = _listings[index];
       _listings[index] = item.copyWith(isFavorited: !item.isFavorited);
+      notifyListeners();
+    }
+  }
+
+  Future<bool> createListing({
+    required String name,
+    required String category,
+    required double weightKg,
+    required String condition,
+    required int price,
+    required bool isFree,
+    required String generalLocation,
+    required String description,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final newListing = await materialRepository.createMaterial(
+        name: name,
+        category: category,
+        weightKg: weightKg,
+        condition: condition,
+        price: price,
+        isFree: isFree,
+        generalLocation: generalLocation,
+        description: description,
+      );
+      _listings.insert(0, newListing);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('ApiException: ', '');
+      notifyListeners();
+      return false;
+    } finally {
+      _isLoading = false;
       notifyListeners();
     }
   }

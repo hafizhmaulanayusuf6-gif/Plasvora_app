@@ -709,12 +709,36 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                 ? null
                 : () async {
                     final result = await widget.viewModel.submitAnalysis();
-                    if (result != null && mounted) {
+                    if (!mounted) return;
+                    if (result != null) {
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (context) => AnalysisResultScreen(
                             result: result,
                             navigationViewModel: widget.navigationViewModel,
+                          ),
+                        ),
+                      );
+                    } else {
+                      final errorMsg =
+                          widget.viewModel.errorMessage ?? 'Analisis gagal. Silakan coba lagi.';
+                      final isUnsupportedOrUncertain = errorMsg.contains('bukan sampah plastik') ||
+                          errorMsg.contains('belum dapat dipastikan') ||
+                          errorMsg.contains('merek');
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(errorMsg),
+                          backgroundColor: isUnsupportedOrUncertain
+                              ? const Color(0xFFD97706)
+                              : Colors.red.shade700,
+                          behavior: SnackBarBehavior.floating,
+                          duration: const Duration(seconds: 5),
+                          action: SnackBarAction(
+                            label: 'Tutup',
+                            textColor: Colors.white,
+                            onPressed: () {
+                              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                            },
                           ),
                         ),
                       );
