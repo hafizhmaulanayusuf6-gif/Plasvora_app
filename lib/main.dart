@@ -11,6 +11,7 @@ import 'viewmodels/auth_viewmodel.dart';
 import 'viewmodels/home_viewmodel.dart';
 import 'viewmodels/marketplace_viewmodel.dart';
 import 'viewmodels/navigation_viewmodel.dart';
+import 'views/auth/login_screen.dart';
 import 'views/main_navigation_screen.dart';
 
 void main() {
@@ -80,13 +81,46 @@ class PlasvoraApp extends StatelessWidget {
       title: 'PLASVORA',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: MainNavigationScreen(
+      home: _buildHome(),
+    );
+  }
+
+  Widget _buildHome() {
+    if (authViewModel == null) {
+      return MainNavigationScreen(
         navigationViewModel: navigationViewModel,
         homeViewModel: homeViewModel,
         analysisViewModel: analysisViewModel,
         marketplaceViewModel: marketplaceViewModel,
         authViewModel: authViewModel,
-      ),
+      );
+    }
+
+    return ListenableBuilder(
+      listenable: authViewModel!,
+      builder: (context, _) {
+        if (authViewModel!.isLoading && authViewModel!.state == AuthState.initial) {
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        if (authViewModel!.isAuthenticated) {
+          return MainNavigationScreen(
+            navigationViewModel: navigationViewModel,
+            homeViewModel: homeViewModel,
+            analysisViewModel: analysisViewModel,
+            marketplaceViewModel: marketplaceViewModel,
+            authViewModel: authViewModel,
+          );
+        }
+
+        return LoginScreen(
+          authViewModel: authViewModel!,
+        );
+      },
     );
   }
 }
