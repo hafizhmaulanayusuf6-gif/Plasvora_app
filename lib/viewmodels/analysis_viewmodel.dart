@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../core/network/api_client.dart';
 import '../models/plastic_analysis.dart';
 import '../repositories/analysis_repository.dart';
 
@@ -34,6 +35,9 @@ class AnalysisViewModel extends ChangeNotifier {
   bool _isSuccess = false;
   bool get isSuccess => _isSuccess;
 
+  String? _errorMessage;
+  String? get errorMessage => _errorMessage;
+
   PlasticAnalysisResult? _analysisResult;
   PlasticAnalysisResult? get analysisResult => _analysisResult;
 
@@ -48,13 +52,9 @@ class AnalysisViewModel extends ChangeNotifier {
       if (file != null) {
         _imagePath = file.path;
         _hasImage = true;
-      } else {
-        // Fallback to sample for testing/demonstration if user cancelled
-        _hasImage = true;
       }
     } catch (_) {
-      // In simulator/desktop or if camera denied, activate preview with sample
-      _hasImage = true;
+      // Ignore or handle permission denial
     }
     notifyListeners();
   }
@@ -70,13 +70,9 @@ class AnalysisViewModel extends ChangeNotifier {
       if (file != null) {
         _imagePath = file.path;
         _hasImage = true;
-      } else {
-        // Fallback to sample for testing/demonstration if user cancelled
-        _hasImage = true;
       }
     } catch (_) {
-      // In simulator/desktop or if permission denied, activate preview with sample
-      _hasImage = true;
+      // Ignore or handle permission denial
     }
     notifyListeners();
   }
@@ -112,9 +108,15 @@ class AnalysisViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void clearError() {
+    _errorMessage = null;
+    notifyListeners();
+  }
+
   Future<PlasticAnalysisResult?> submitAnalysis() async {
     _isLoading = true;
     _isSuccess = false;
+    _errorMessage = null;
     notifyListeners();
 
     try {
@@ -122,7 +124,7 @@ class AnalysisViewModel extends ChangeNotifier {
         imagePath: _imagePath,
         isCameraOrGallery: _imagePath != null,
         polymerCategory: _polymerCategory,
-        weightKg: _weightKg > 0 ? _weightKg : 5.0,
+        weightKg: _weightKg > 0 ? _weightKg : 1.0,
         condition: _condition,
         notes: _notes,
       );
@@ -131,6 +133,13 @@ class AnalysisViewModel extends ChangeNotifier {
       _analysisResult = result;
       _isSuccess = true;
       return result;
+    } catch (e) {
+      if (e is ApiException) {
+        _errorMessage = e.message;
+      } else {
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      }
+      return null;
     } finally {
       _isLoading = false;
       notifyListeners();

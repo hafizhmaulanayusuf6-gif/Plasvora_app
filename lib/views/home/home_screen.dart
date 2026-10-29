@@ -5,23 +5,109 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/widgets/plasvora_header.dart';
 import '../../models/material_listing.dart';
+import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/home_viewmodel.dart';
 import '../../viewmodels/navigation_viewmodel.dart';
+import '../auth/login_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   final HomeViewModel viewModel;
   final NavigationViewModel navigationViewModel;
+  final AuthViewModel? authViewModel;
 
   const HomeScreen({
     super.key,
     required this.viewModel,
     required this.navigationViewModel,
+    this.authViewModel,
   });
+
+  void _showAuthModal(BuildContext context) {
+    if (authViewModel == null) return;
+
+    if (authViewModel!.isAuthenticated) {
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: AppColors.surfaceContainerLowest,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (ctx) {
+          final user = authViewModel!.currentUser;
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Profil Akun',
+                    style: AppTypography.headlineSm(color: AppColors.primary),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    user?.name ?? 'Pengguna Plasvora',
+                    style: AppTypography.labelLg(color: AppColors.onSurface),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    user?.email ?? '',
+                    style: AppTypography.bodySm(color: AppColors.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 46,
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.logout, color: Colors.red),
+                      label: const Text(
+                        'Keluar dari Akun',
+                        style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.red),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () async {
+                        Navigator.of(ctx).pop();
+                        await authViewModel!.logout();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Anda telah berhasil keluar.'),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => LoginScreen(
+            authViewModel: authViewModel!,
+          ),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const PlasvoraHeader(),
+      appBar: PlasvoraHeader(
+        onAvatarTap: () => _showAuthModal(context),
+      ),
       body: ListenableBuilder(
         listenable: viewModel,
         builder: (context, _) {

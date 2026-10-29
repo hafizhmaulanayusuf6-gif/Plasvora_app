@@ -8,12 +8,14 @@ class PlasvoraHeader extends StatelessWidget implements PreferredSizeWidget {
   final String? customTitle;
   final bool showBack;
   final VoidCallback? onBack;
+  final VoidCallback? onAvatarTap;
 
   const PlasvoraHeader({
     super.key,
     this.customTitle,
     this.showBack = false,
     this.onBack,
+    this.onAvatarTap,
   });
 
   @override
@@ -127,21 +129,24 @@ class PlasvoraHeader extends StatelessWidget implements PreferredSizeWidget {
               ),
               const SizedBox(width: 6),
               // User avatar
-              ClipRRect(
-                borderRadius: BorderRadius.circular(999),
-                child: Image.asset(
-                  AppAssets.avatar,
-                  width: 34,
-                  height: 34,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
+              GestureDetector(
+                onTap: onAvatarTap,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: Image.asset(
+                    AppAssets.avatar,
                     width: 34,
                     height: 34,
-                    color: AppColors.secondaryContainer,
-                    child: const Icon(
-                      Icons.person,
-                      size: 20,
-                      color: AppColors.primary,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      width: 34,
+                      height: 34,
+                      color: AppColors.secondaryContainer,
+                      child: const Icon(
+                        Icons.person,
+                        size: 20,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ),
                 ),
