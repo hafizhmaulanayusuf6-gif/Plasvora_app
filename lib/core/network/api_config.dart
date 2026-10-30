@@ -1,6 +1,7 @@
 class ApiConfig {
   /// Base URL backend Laravel.
-  /// Gunakan 10.0.2.2 untuk Android emulator, 127.0.0.1 untuk web/desktop emulator/host.
+  /// Gunakan IP LAN laptop (misal http://192.168.0.146:8000/api) agar bisa diakses langsung dari HP fisik.
+  /// Gunakan 10.0.2.2 untuk Android emulator, 127.0.0.1 jika menggunakan adb reverse / desktop.
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: 'http://127.0.0.1:8000/api',

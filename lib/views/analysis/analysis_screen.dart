@@ -708,6 +708,15 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             onPressed: isLoading
                 ? null
                 : () async {
+                    // Pastikan catatan dan berat terbaru tersinkronisasi ke ViewModel
+                    widget.viewModel.setNotes(_notesController.text.trim());
+                    if (_weightController.text.isNotEmpty) {
+                      final parsedWeight = double.tryParse(_weightController.text);
+                      if (parsedWeight != null && parsedWeight > 0) {
+                        widget.viewModel.setWeight(parsedWeight);
+                      }
+                    }
+
                     final result = await widget.viewModel.submitAnalysis();
                     if (!mounted) return;
                     if (result != null) {
