@@ -77,11 +77,12 @@ void main() {
       expect(find.text('Daftar'), findsOneWidget);
 
       // Tap on 'Daftar' to trigger navigation
+      await tester.ensureVisible(find.text('Daftar'));
       await tester.tap(find.text('Daftar'));
       await tester.pumpAndSettle();
 
       // Verify RegisterScreen is pushed
-      expect(find.text('Buat Akun'), findsOneWidget);
+      expect(find.widgetWithText(ElevatedButton, 'Buat Akun'), findsOneWidget);
       expect(find.text('Nama Lengkap'), findsOneWidget);
       expect(find.text('Konfirmasi Kata Sandi'), findsOneWidget);
       expect(find.text('Saya menyetujui Ketentuan Layanan & Kebijakan Privasi'), findsOneWidget);
@@ -118,7 +119,9 @@ void main() {
       );
 
       // Tap Buat Akun without inputs
-      await tester.tap(find.text('Buat Akun'));
+      final buttonFinder = find.widgetWithText(ElevatedButton, 'Buat Akun');
+      await tester.ensureVisible(buttonFinder);
+      await tester.tap(buttonFinder);
       await tester.pumpAndSettle();
 
       expect(find.text('Nama lengkap wajib diisi.'), findsOneWidget);

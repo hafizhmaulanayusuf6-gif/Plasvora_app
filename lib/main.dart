@@ -23,9 +23,8 @@ void main() {
     ),
   );
 
-  // Mode konfigurasi: gunakan API backend saat flag USE_API_REPOSITORY aktif
-  // (default: false untuk backward compatibility widget test, true via environment/toggle)
-  const useApiRepository = bool.fromEnvironment('USE_API', defaultValue: false);
+  // Mode konfigurasi: aktifkan integrasi API backend secara default
+  const useApiRepository = bool.fromEnvironment('USE_API', defaultValue: true);
 
   final apiClient = ApiClient();
   final MaterialRepository materialRepository = useApiRepository
