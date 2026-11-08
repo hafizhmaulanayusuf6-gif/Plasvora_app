@@ -1,6 +1,7 @@
 import '../core/constants/app_assets.dart';
 import '../core/network/api_client.dart';
 import '../core/network/api_config.dart';
+import '../models/impact_summary.dart';
 import '../models/material_listing.dart';
 
 abstract class MaterialRepository {
@@ -17,6 +18,7 @@ abstract class MaterialRepository {
     required String description,
   });
   Future<void> toggleFavorite(int id);
+  Future<ImpactSummary> getImpactSummary();
 }
 
 class ApiMaterialRepository implements MaterialRepository {
@@ -114,6 +116,18 @@ class ApiMaterialRepository implements MaterialRepository {
     } else {
       _favoriteIds.add(id);
     }
+  }
+
+  @override
+  Future<ImpactSummary> getImpactSummary() async {
+    final response = await apiClient.get(
+      ApiConfig.impactSummary,
+      requiresAuth: false,
+    );
+    if (response is Map<String, dynamic> && response['data'] != null) {
+      return ImpactSummary.fromJson(response['data'] as Map<String, dynamic>);
+    }
+    throw ApiException('Format respons impact summary tidak valid');
   }
 
   String? _resolveLocalFallbackAsset(String category) {
@@ -272,5 +286,29 @@ class MockMaterialRepository implements MaterialRepository {
     );
     _items.insert(0, newItem);
     return newItem;
+  }
+
+  @override
+  Future<ImpactSummary> getImpactSummary() async {
+    final totalListedKg = _items.fold<double>(
+      0.0,
+      (sum, item) => sum + item.weightKg,
+    );
+    final availableItems = _items.where((i) => i.status == 'available');
+    final availableKg = availableItems.fold<double>(
+      0.0,
+      (sum, item) => sum + item.weightKg,
+    );
+
+    return ImpactSummary(
+      listedCount: _items.length,
+      listedWeightKg: totalListedKg,
+      availableCount: availableItems.length,
+      availableWeightKg: availableKg,
+      handedOverCount: 0,
+      handedOverWeightKg: 0.0,
+      confirmedCount: 0,
+      confirmedWeightKg: 0.0,
+    );
   }
 }

@@ -19,6 +19,16 @@ class ImpactSummary {
     required this.confirmedWeightKg,
   });
 
+  static int _parseInt(dynamic val) {
+    if (val is int) return val;
+    return int.tryParse(val?.toString() ?? '0') ?? 0;
+  }
+
+  static double _parseDouble(dynamic val) {
+    if (val is num) return val.toDouble();
+    return double.tryParse(val?.toString() ?? '0') ?? 0.0;
+  }
+
   factory ImpactSummary.fromJson(Map<String, dynamic> json) {
     final listed = json['materials_listed'] as Map<String, dynamic>? ?? {};
     final available = json['materials_available'] as Map<String, dynamic>? ?? {};
@@ -26,14 +36,14 @@ class ImpactSummary {
     final confirmed = json['materials_utilized'] as Map<String, dynamic>? ?? {};
 
     return ImpactSummary(
-      listedCount: listed['count'] as int? ?? 0,
-      listedWeightKg: (listed['weight_kg'] as num?)?.toDouble() ?? 0.0,
-      availableCount: available['count'] as int? ?? 0,
-      availableWeightKg: (available['weight_kg'] as num?)?.toDouble() ?? 0.0,
-      handedOverCount: handedOver['count'] as int? ?? 0,
-      handedOverWeightKg: (handedOver['weight_kg'] as num?)?.toDouble() ?? 0.0,
-      confirmedCount: confirmed['count'] as int? ?? 0,
-      confirmedWeightKg: (confirmed['weight_kg'] as num?)?.toDouble() ?? 0.0,
+      listedCount: _parseInt(listed['count']),
+      listedWeightKg: _parseDouble(listed['weight_kg']),
+      availableCount: _parseInt(available['count']),
+      availableWeightKg: _parseDouble(available['weight_kg']),
+      handedOverCount: _parseInt(handedOver['count']),
+      handedOverWeightKg: _parseDouble(handedOver['weight_kg']),
+      confirmedCount: _parseInt(confirmed['count']),
+      confirmedWeightKg: _parseDouble(confirmed['weight_kg']),
     );
   }
 }

@@ -599,6 +599,20 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   void _showOfferMaterialBottomSheet(BuildContext context) {
+    final nameCtrl = TextEditingController();
+    final weightCtrl = TextEditingController();
+    final locationCtrl = TextEditingController();
+    final priceCtrl = TextEditingController(text: '0');
+    final descriptionCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    String selectedCategory = 'PET';
+    String selectedCondition = 'clean';
+    bool isFree = true;
+    bool isSubmitting = false;
+
+    final outerMessenger = ScaffoldMessenger.of(context);
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -606,61 +620,235 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       backgroundColor: AppColors.surfaceContainerLowest,
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            top: 20,
-            left: 20,
-            right: 20,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Tawarkan Material Plastik',
-                style: AppTypography.headlineSm(color: AppColors.onSurface),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (stateContext, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                top: 20,
+                left: 20,
+                right: 20,
+                bottom: MediaQuery.of(stateContext).viewInsets.bottom + 24,
               ),
-              const SizedBox(height: 6),
-              Text(
-                'Hubungkan material Anda ke pengrajin atau bank sampah terdekat.',
-                style: AppTypography.bodySm(color: AppColors.onSurfaceVariant),
-              ),
-              const SizedBox(height: 16),
-              const TextField(
-                decoration: InputDecoration(
-                  labelText: 'Nama Material (contoh: Tutup Botol HDPE)',
-                ),
-              ),
-              const SizedBox(height: 12),
-              const TextField(
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(labelText: 'Berat Estimasi (kg)'),
-              ),
-              const SizedBox(height: 18),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Penawaran berhasil disimpan! (Mock Data)',
-                        ),
-                        behavior: SnackBarBehavior.floating,
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Tawarkan Material Plastik',
+                        style: AppTypography.headlineSm(color: AppColors.onSurface),
                       ),
-                    );
-                  },
-                  child: const Text('Publikasikan Penawaran'),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Hubungkan material Anda ke pengrajin atau bank sampah terdekat.',
+                        style: AppTypography.bodySm(color: AppColors.onSurfaceVariant),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: nameCtrl,
+                        textInputAction: TextInputAction.next,
+                        decoration: const InputDecoration(
+                          labelText: 'Nama Material',
+                          hintText: 'contoh: Tutup Botol HDPE',
+                        ),
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) return 'Nama material wajib diisi.';
+                          if (v.trim().length < 3) return 'Nama material minimal 3 karakter.';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedCategory,
+                        decoration: const InputDecoration(
+                          labelText: 'Kategori Polimer',
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 'PET', child: Text('PET')),
+                          DropdownMenuItem(value: 'HDPE', child: Text('HDPE')),
+                          DropdownMenuItem(value: 'PP', child: Text('PP')),
+                          DropdownMenuItem(value: 'LDPE', child: Text('LDPE')),
+                          DropdownMenuItem(value: 'MIXED', child: Text('Campuran')),
+                          DropdownMenuItem(value: 'Lainnya', child: Text('Lainnya')),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) setSheetState(() => selectedCategory = val);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: weightCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        textInputAction: TextInputAction.next,
+                        decoration: const InputDecoration(
+                          labelText: 'Berat Estimasi (kg)',
+                          hintText: 'contoh: 5.5',
+                        ),
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) return 'Berat material wajib diisi.';
+                          final w = double.tryParse(v.trim());
+                          if (w == null || w < 0.01) return 'Berat harus lebih dari 0 kg.';
+                          if (w > 99999) return 'Berat maksimal 99999 kg.';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedCondition,
+                        decoration: const InputDecoration(
+                          labelText: 'Kondisi Material',
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 'clean', child: Text('Bersih')),
+                          DropdownMenuItem(value: 'slightly_dirty', child: Text('Sedikit Kotor')),
+                          DropdownMenuItem(value: 'dirty', child: Text('Kotor')),
+                          DropdownMenuItem(value: 'mixed', child: Text('Campuran')),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) setSheetState(() => selectedCondition = val);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: locationCtrl,
+                        textInputAction: TextInputAction.next,
+                        decoration: const InputDecoration(
+                          labelText: 'Lokasi Umum',
+                          hintText: 'contoh: Kota Bandung',
+                        ),
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) return 'Lokasi wajib diisi.';
+                          if (v.trim().length < 3) return 'Lokasi minimal 3 karakter.';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Gratis (donasi)',
+                            style: AppTypography.labelMd(color: AppColors.onSurface),
+                          ),
+                          Switch(
+                            value: isFree,
+                            activeThumbColor: AppColors.primary,
+                            onChanged: (val) {
+                              setSheetState(() {
+                                isFree = val;
+                                if (val) priceCtrl.text = '0';
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                      if (!isFree) ...[
+                        TextFormField(
+                          controller: priceCtrl,
+                          keyboardType: TextInputType.number,
+                          textInputAction: TextInputAction.next,
+                          decoration: const InputDecoration(
+                            labelText: 'Harga (Rp)',
+                            hintText: 'contoh: 15000',
+                          ),
+                          validator: (v) {
+                            if (isFree) return null;
+                            if (v == null || v.trim().isEmpty) return 'Harga wajib diisi jika tidak gratis.';
+                            final p = num.tryParse(v.trim());
+                            if (p == null || p <= 0) return 'Harga harus lebih dari 0.';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      TextFormField(
+                        controller: descriptionCtrl,
+                        maxLines: 2,
+                        textInputAction: TextInputAction.done,
+                        decoration: const InputDecoration(
+                          labelText: 'Deskripsi (opsional)',
+                          hintText: 'Informasi tambahan tentang material',
+                        ),
+                        validator: (v) {
+                          if (v != null && v.length > 2000) return 'Deskripsi maksimal 2000 karakter.';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 18),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: isSubmitting
+                              ? null
+                              : () async {
+                                  if (!formKey.currentState!.validate()) return;
+
+                                  setSheetState(() => isSubmitting = true);
+
+                                  final success = await widget.viewModel.createListing(
+                                    name: nameCtrl.text.trim(),
+                                    category: selectedCategory,
+                                    weightKg: double.parse(weightCtrl.text.trim()),
+                                    condition: selectedCondition,
+                                    price: isFree ? 0 : (num.tryParse(priceCtrl.text.trim())?.toInt() ?? 0),
+                                    isFree: isFree,
+                                    generalLocation: locationCtrl.text.trim(),
+                                    description: descriptionCtrl.text.trim(),
+                                  );
+
+                                  if (!stateContext.mounted) return;
+
+                                  if (success) {
+                                    Navigator.of(stateContext).pop();
+                                    outerMessenger.showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Penawaran material berhasil dipublikasikan!'),
+                                        behavior: SnackBarBehavior.floating,
+                                      ),
+                                    );
+                                  } else {
+                                    setSheetState(() => isSubmitting = false);
+                                    outerMessenger.showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          widget.viewModel.errorMessage ?? 'Gagal mempublikasikan penawaran.',
+                                        ),
+                                        behavior: SnackBarBehavior.floating,
+                                        backgroundColor: Colors.red.shade700,
+                                      ),
+                                    );
+                                  }
+                                },
+                          child: isSubmitting
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text('Publikasikan Penawaran'),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ],
-          ),
+            );
+          },
         );
       },
-    );
+    ).then((_) {
+      nameCtrl.dispose();
+      weightCtrl.dispose();
+      locationCtrl.dispose();
+      priceCtrl.dispose();
+      descriptionCtrl.dispose();
+    });
   }
 }

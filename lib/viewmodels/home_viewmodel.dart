@@ -22,10 +22,19 @@ class HomeViewModel extends ChangeNotifier {
   ImpactSummary? _impactSummary;
   ImpactSummary? get impactSummary => _impactSummary;
 
-  // Fallback metrics jika backend impact data belum terkoneksi
-  double get registeredKg => _impactSummary?.listedWeightKg ?? 18.4;
-  double get handedOverKg => _impactSummary?.handedOverWeightKg ?? 12.0;
-  double get processedKg => _impactSummary?.confirmedWeightKg ?? 9.5;
+  bool _isImpactLoading = false;
+  bool get isImpactLoading => _isImpactLoading;
+
+  String? _impactErrorMessage;
+  String? get impactErrorMessage => _impactErrorMessage;
+
+  bool get hasImpactData => _impactSummary != null;
+
+  // Real data getters dari backend (tanpa angka palsu fallback!)
+  // Mengembalikan null jika data belum selesai dimuat atau terjadi error
+  double? get registeredKg => _impactSummary?.listedWeightKg;
+  double? get handedOverKg => _impactSummary?.handedOverWeightKg;
+  double? get processedKg => _impactSummary?.confirmedWeightKg;
 
   Future<void> loadHomeData() async {
     _isLoading = true;
@@ -39,6 +48,25 @@ class HomeViewModel extends ChangeNotifier {
       _errorMessage = e.toString().replaceFirst('ApiException: ', '');
     } finally {
       _isLoading = false;
+      notifyListeners();
+    }
+
+    // Ambil impact summary secara terpisah agar kegagalannya tidak membatalkan recent listings
+    await loadImpactSummary();
+  }
+
+  Future<void> loadImpactSummary() async {
+    _isImpactLoading = true;
+    _impactErrorMessage = null;
+    notifyListeners();
+
+    try {
+      _impactSummary = await materialRepository.getImpactSummary();
+    } catch (e) {
+      _impactErrorMessage = e.toString().replaceFirst('ApiException: ', '');
+      _impactSummary = null;
+    } finally {
+      _isImpactLoading = false;
       notifyListeners();
     }
   }

@@ -30,10 +30,14 @@ class MaterialRequestItem {
     }
 
     return MaterialRequestItem(
-      id: json['id'] as int,
-      requesterId: json['requester_id'] as int? ?? 0,
+      id: json['id'] is int ? json['id'] as int : (int.tryParse(json['id']?.toString() ?? '0') ?? 0),
+      requesterId: json['requester_id'] is int
+          ? json['requester_id'] as int
+          : (int.tryParse(json['requester_id']?.toString() ?? '0') ?? 0),
       materialCategory: json['material_category'] as String? ?? 'PET',
-      requestedWeightKg: (json['requested_weight_kg'] as num?)?.toDouble() ?? 0.0,
+      requestedWeightKg: json['requested_weight_kg'] is num
+          ? (json['requested_weight_kg'] as num).toDouble()
+          : (double.tryParse(json['requested_weight_kg']?.toString() ?? '0') ?? 0.0),
       minimumCondition: json['minimum_condition'] as String? ?? 'clean',
       generalLocation: json['general_location'] as String? ?? '',
       intendedUse: json['intended_use'] as String? ?? '',

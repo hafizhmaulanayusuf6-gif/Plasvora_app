@@ -167,7 +167,7 @@ class HomeScreen extends StatelessWidget {
           children: [
             Positioned(
               right: 0,
-              top: 0,
+              top: -18,
               bottom: 0,
               width: 170,
               child: Opacity(
@@ -175,6 +175,7 @@ class HomeScreen extends StatelessWidget {
                 child: Image.asset(
                   AppAssets.forestHero,
                   fit: BoxFit.cover,
+                  alignment: Alignment.bottomRight,
                   errorBuilder: (context, error, stackTrace) =>
                       const SizedBox(),
                 ),
@@ -518,19 +519,35 @@ class HomeScreen extends StatelessWidget {
                   style: AppTypography.headlineSm(color: AppColors.onSurface),
                 ),
                 const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceContainer,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    'Demo',
-                    style: AppTypography.labelSm(color: AppColors.secondary)
-                        .copyWith(fontWeight: FontWeight.w600),
+                GestureDetector(
+                  onTap: viewModel.impactErrorMessage != null
+                      ? () => viewModel.loadImpactSummary()
+                      : null,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: viewModel.impactErrorMessage != null
+                          ? const Color(0xFFFFEBEE)
+                          : AppColors.surfaceContainer,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      viewModel.isImpactLoading
+                          ? 'Memuat...'
+                          : (viewModel.impactErrorMessage != null
+                              ? 'Coba lagi'
+                              : (viewModel.hasImpactData ? 'Aktual' : 'Data')),
+                      style: AppTypography.labelSm(
+                        color: viewModel.impactErrorMessage != null
+                            ? Colors.red.shade700
+                            : (viewModel.hasImpactData
+                                ? AppColors.primary
+                                : AppColors.secondary),
+                      ).copyWith(fontWeight: FontWeight.w600),
+                    ),
                   ),
                 ),
               ],
@@ -567,7 +584,9 @@ class HomeScreen extends StatelessWidget {
                 icon: Icons.inventory_2_outlined,
                 iconColor: AppColors.secondary,
                 label: 'Terdaftar',
-                value: viewModel.registeredKg.toStringAsFixed(1),
+                value: viewModel.registeredKg != null
+                    ? viewModel.registeredKg!.toStringAsFixed(1)
+                    : (viewModel.isImpactLoading ? '...' : '-'),
                 unit: 'kg',
                 sublabel: 'Material terdata',
                 highlightValue: false,
@@ -579,7 +598,9 @@ class HomeScreen extends StatelessWidget {
                 icon: Icons.local_shipping_outlined,
                 iconColor: AppColors.primaryContainer,
                 label: 'Diserahkan',
-                value: viewModel.handedOverKg.toStringAsFixed(1),
+                value: viewModel.handedOverKg != null
+                    ? viewModel.handedOverKg!.toStringAsFixed(1)
+                    : (viewModel.isImpactLoading ? '...' : '-'),
                 unit: 'kg',
                 sublabel: 'Terkirim mitra',
                 highlightValue: true,
@@ -591,7 +612,9 @@ class HomeScreen extends StatelessWidget {
                 icon: Icons.recycling,
                 iconColor: AppColors.primary,
                 label: 'Dikelola',
-                value: viewModel.processedKg.toStringAsFixed(1),
+                value: viewModel.processedKg != null
+                    ? viewModel.processedKg!.toStringAsFixed(1)
+                    : (viewModel.isImpactLoading ? '...' : '-'),
                 unit: 'kg',
                 sublabel: 'Telah diolah',
                 highlightValue: true,
@@ -599,6 +622,22 @@ class HomeScreen extends StatelessWidget {
             ),
           ],
         ),
+        if (viewModel.impactErrorMessage != null) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(Icons.info_outline, size: 14, color: Colors.red.shade400),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Gagal memuat jejak dampak (${viewModel.impactErrorMessage}). Ketuk badge di atas untuk mencoba lagi.',
+                  style: AppTypography.bodySm(color: Colors.red.shade700)
+                      .copyWith(fontSize: 11),
+                ),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }

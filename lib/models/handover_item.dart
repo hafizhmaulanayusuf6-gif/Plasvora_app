@@ -44,13 +44,25 @@ class HandoverItem {
     }
 
     return HandoverItem(
-      id: json['id'] as int,
-      listingId: json['listing_id'] as int? ?? 0,
-      ownerId: json['owner_id'] as int? ?? 0,
-      requesterId: json['requester_id'] as int? ?? 0,
-      requestedWeightKg: (json['requested_weight_kg'] as num?)?.toDouble() ?? 0.0,
-      agreedWeightKg: (json['agreed_weight_kg'] as num?)?.toDouble(),
-      actualWeightKg: (json['actual_weight_kg'] as num?)?.toDouble(),
+      id: json['id'] is int ? json['id'] as int : (int.tryParse(json['id']?.toString() ?? '0') ?? 0),
+      listingId: json['listing_id'] is int
+          ? json['listing_id'] as int
+          : (int.tryParse(json['listing_id']?.toString() ?? '0') ?? 0),
+      ownerId: json['owner_id'] is int
+          ? json['owner_id'] as int
+          : (int.tryParse(json['owner_id']?.toString() ?? '0') ?? 0),
+      requesterId: json['requester_id'] is int
+          ? json['requester_id'] as int
+          : (int.tryParse(json['requester_id']?.toString() ?? '0') ?? 0),
+      requestedWeightKg: json['requested_weight_kg'] is num
+          ? (json['requested_weight_kg'] as num).toDouble()
+          : (double.tryParse(json['requested_weight_kg']?.toString() ?? '0') ?? 0.0),
+      agreedWeightKg: json['agreed_weight_kg'] is num
+          ? (json['agreed_weight_kg'] as num).toDouble()
+          : double.tryParse(json['agreed_weight_kg']?.toString() ?? ''),
+      actualWeightKg: json['actual_weight_kg'] is num
+          ? (json['actual_weight_kg'] as num).toDouble()
+          : double.tryParse(json['actual_weight_kg']?.toString() ?? ''),
       status: json['status'] as String? ?? 'pending',
       note: json['note'] as String?,
       listingName: listName,

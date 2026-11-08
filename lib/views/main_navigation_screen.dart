@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/widgets/app_bottom_nav.dart';
+import '../viewmodels/activity_viewmodel.dart';
 import '../viewmodels/analysis_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../viewmodels/home_viewmodel.dart';
@@ -17,6 +18,7 @@ class MainNavigationScreen extends StatelessWidget {
   final AnalysisViewModel analysisViewModel;
   final MarketplaceViewModel marketplaceViewModel;
   final AuthViewModel? authViewModel;
+  final ActivityViewModel? activityViewModel;
 
   const MainNavigationScreen({
     super.key,
@@ -25,6 +27,7 @@ class MainNavigationScreen extends StatelessWidget {
     required this.analysisViewModel,
     required this.marketplaceViewModel,
     this.authViewModel,
+    this.activityViewModel,
   });
 
   @override
@@ -51,7 +54,7 @@ class MainNavigationScreen extends StatelessWidget {
                 viewModel: marketplaceViewModel,
                 navigationViewModel: navigationViewModel,
               ),
-              const ActivityScreen(),
+              ActivityScreen(viewModel: activityViewModel),
             ],
           ),
           bottomNavigationBar: AppBottomNav(
