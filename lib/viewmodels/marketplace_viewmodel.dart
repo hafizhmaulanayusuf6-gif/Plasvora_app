@@ -39,8 +39,10 @@ class MarketplaceViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // BUG-09: Petakan label UI 'Lainnya' ke 'OTHER' saat memfilter API
+      final categoryQuery = _selectedCategory == 'Lainnya' ? 'OTHER' : _selectedCategory;
       final items = await materialRepository.getMaterials(
-        category: _selectedCategory,
+        category: categoryQuery,
         query: _searchQuery,
       );
       _listings = items;
@@ -90,11 +92,17 @@ class MarketplaceViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // BUG-09: Normalisasi kategori 'Lainnya' -> 'OTHER'
+      final normalizedCategory = category.trim() == 'Lainnya' ? 'OTHER' : category.trim();
+
+      // BUG-10: Normalisasi kondisi 'light' -> 'slightly_dirty'
+      final normalizedCondition = condition.trim() == 'light' ? 'slightly_dirty' : condition.trim();
+
       final newListing = await materialRepository.createMaterial(
         name: name,
-        category: category,
+        category: normalizedCategory,
         weightKg: weightKg,
-        condition: condition,
+        condition: normalizedCondition,
         price: price,
         isFree: isFree,
         generalLocation: generalLocation,

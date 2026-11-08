@@ -23,7 +23,6 @@ class AnalysisResultScreen extends StatefulWidget {
 }
 
 class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
-  bool _isSaved = false;
   bool _isSearchingPartners = false;
 
   @override
@@ -1303,7 +1302,7 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
               setState(() => _isSearchingPartners = true);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Menemukan 12 Mitra & Pengrajin di sekitarmu!'),
+                  content: Text('Membuka Marketplace untuk mencari penerima material...'),
                   behavior: SnackBarBehavior.floating,
                   duration: Duration(seconds: 2),
                 ),
@@ -1337,40 +1336,30 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
           ),
         ),
         const SizedBox(height: 10),
-        SizedBox(
+        Container(
           width: double.infinity,
-          height: 50,
-          child: OutlinedButton.icon(
-            onPressed: () {
-              setState(() => _isSaved = !_isSaved);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    _isSaved
-                        ? 'Berhasil disimpan ke Riwayat & Ide!'
-                        : 'Dihapus dari simpanan.',
-                  ),
-                  behavior: SnackBarBehavior.floating,
-                  duration: const Duration(seconds: 2),
-                ),
-              );
-            },
-            icon: Icon(
-              _isSaved ? Icons.bookmark : Icons.bookmark_border,
-              size: 20,
-              color: _isSaved ? AppColors.secondary : AppColors.primary,
+          height: 48,
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainerLowest,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: AppColors.outline.withValues(alpha: 0.2),
             ),
-            label: Text(
-              _isSaved ? 'Tersimpan di Riwayat' : 'Simpan ke Riwayat & Ide',
-              style: AppTypography.labelLg(
-                color: _isSaved ? AppColors.secondary : AppColors.primary,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.check_circle_outline,
+                size: 18,
+                color: AppColors.primary,
               ),
-            ),
-            style: OutlinedButton.styleFrom(
-              backgroundColor: AppColors.surfaceContainerLowest,
-              side: const BorderSide(color: Color(0x20707974)),
-              shape: const StadiumBorder(),
-            ),
+              const SizedBox(width: 8),
+              Text(
+                'Analisis tersimpan otomatis di sistem',
+                style: AppTypography.labelMd(color: AppColors.onSurfaceVariant),
+              ),
+            ],
           ),
         ),
       ],

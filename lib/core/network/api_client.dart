@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 
 class ApiException implements Exception {
   final String message;
@@ -43,6 +45,48 @@ class ApiClient {
   })  : _client = client ?? http.Client(),
         tokenStorage = tokenStorage ?? InMemoryAuthTokenStorage();
 
+  /// Factory asynchronous untuk menginisialisasi ApiClient dengan SecurityContext
+  /// yang menyertakan sertifikat root resmi ISRG Root X1 (Let's Encrypt).
+  ///
+  /// Tetap mempertahankan withTrustedRoots: true agar seluruh root certificate
+  /// sistem Android tetap aktif. Memastikan kompatibilitas TLS handshake pada
+  /// Android 7.0 (API 24) tanpa mengorbankan validasi sertifikat maupun hostname.
+  static Future<ApiClient> create({
+    http.Client? client,
+    AuthTokenStorage? tokenStorage,
+  }) async {
+    if (client != null) {
+      return ApiClient(client: client, tokenStorage: tokenStorage);
+    }
+
+    try {
+      final certByteData = await rootBundle.load('assets/certificates/isrgrootx1.pem');
+      final certBytes = certByteData.buffer.asUint8List(
+        certByteData.offsetInBytes,
+        certByteData.lengthInBytes,
+      );
+
+      if (certBytes.isEmpty) {
+        throw StateError('File sertifikat assets/certificates/isrgrootx1.pem kosong.');
+      }
+
+      final securityContext = SecurityContext(withTrustedRoots: true);
+      securityContext.setTrustedCertificatesBytes(certBytes);
+      final ioHttpClient = HttpClient(context: securityContext);
+
+      return ApiClient(
+        client: IOClient(ioHttpClient),
+        tokenStorage: tokenStorage,
+      );
+    } catch (e) {
+      // Tangani kegagalan secara eksplisit tanpa silent fallback
+      throw StateError(
+        'Gagal mengonfigurasi TLS Trust Store dengan ISRG Root X1: $e\n'
+        'Pastikan asset "assets/certificates/isrgrootx1.pem" terdaftar di pubspec.yaml dan valid.',
+      );
+    }
+  }
+
   Future<String?> getToken() => tokenStorage.getToken();
   Future<void> saveToken(String token) => tokenStorage.saveToken(token);
   Future<void> clearToken() => tokenStorage.clearToken();
@@ -51,6 +95,7 @@ class ApiClient {
     final headers = <String, String>{
       'Accept': 'application/json',
       'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
     };
 
     if (requiresAuth) {
@@ -67,10 +112,14 @@ class ApiClient {
       final response = await _client.get(
         Uri.parse(url),
         headers: await _headers(requiresAuth: requiresAuth),
-      );
+      ).timeout(const Duration(seconds: 30));
       return _processResponse(response);
     } on SocketException {
       throw ApiException('Tidak dapat terhubung ke server backend');
+    } on TimeoutException {
+      throw ApiException('Waktu tunggu koneksi ke server habis (timeout).');
+    } on http.ClientException catch (e) {
+      throw ApiException('Gagal berkomunikasi dengan backend: ${e.message}');
     }
   }
 
@@ -84,10 +133,14 @@ class ApiClient {
         Uri.parse(url),
         headers: await _headers(requiresAuth: requiresAuth),
         body: body != null ? jsonEncode(body) : null,
-      );
+      ).timeout(const Duration(seconds: 30));
       return _processResponse(response);
     } on SocketException {
       throw ApiException('Tidak dapat terhubung ke server backend');
+    } on TimeoutException {
+      throw ApiException('Waktu tunggu koneksi ke server habis (timeout).');
+    } on http.ClientException catch (e) {
+      throw ApiException('Gagal berkomunikasi dengan backend: ${e.message}');
     }
   }
 
@@ -103,6 +156,7 @@ class ApiClient {
       final request = http.MultipartRequest('POST', Uri.parse(url));
 
       request.headers['Accept'] = 'application/json';
+      request.headers['ngrok-skip-browser-warning'] = 'true';
       if (requiresAuth) {
         final token = await getToken();
         if (token != null && token.isNotEmpty) {
@@ -148,10 +202,14 @@ class ApiClient {
         Uri.parse(url),
         headers: await _headers(requiresAuth: requiresAuth),
         body: body != null ? jsonEncode(body) : null,
-      );
+      ).timeout(const Duration(seconds: 30));
       return _processResponse(response);
     } on SocketException {
       throw ApiException('Tidak dapat terhubung ke server backend');
+    } on TimeoutException {
+      throw ApiException('Waktu tunggu koneksi ke server habis (timeout).');
+    } on http.ClientException catch (e) {
+      throw ApiException('Gagal berkomunikasi dengan backend: ${e.message}');
     }
   }
 
@@ -160,10 +218,14 @@ class ApiClient {
       final response = await _client.delete(
         Uri.parse(url),
         headers: await _headers(requiresAuth: requiresAuth),
-      );
+      ).timeout(const Duration(seconds: 30));
       return _processResponse(response);
     } on SocketException {
       throw ApiException('Tidak dapat terhubung ke server backend');
+    } on TimeoutException {
+      throw ApiException('Waktu tunggu koneksi ke server habis (timeout).');
+    } on http.ClientException catch (e) {
+      throw ApiException('Gagal berkomunikasi dengan backend: ${e.message}');
     }
   }
 

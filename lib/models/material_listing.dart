@@ -105,16 +105,24 @@ class MaterialListing {
 
   factory MaterialListing.fromJson(Map<String, dynamic> json) {
     return MaterialListing(
-      id: json['id'] as int,
-      ownerId: json['owner_id'] as int? ?? 1,
-      name: json['name'] as String,
-      category: json['category'] as String,
-      weightKg: (json['weight_kg'] as num).toDouble(),
-      condition: json['condition'] as String,
-      price: json['price'] as int? ?? 0,
-      isFree: json['is_free'] as bool? ?? false,
-      generalLocation: json['general_location'] as String,
-      distanceKm: (json['distance_km'] as num?)?.toDouble() ?? 2.5,
+      id: json['id'] is int ? json['id'] as int : (int.tryParse(json['id']?.toString() ?? '0') ?? 0),
+      ownerId: json['owner_id'] is int ? json['owner_id'] as int : (int.tryParse(json['owner_id']?.toString() ?? '1') ?? 1),
+      name: json['name'] as String? ?? '',
+      category: json['category'] as String? ?? 'OTHER',
+      weightKg: json['weight_kg'] is num
+          ? (json['weight_kg'] as num).toDouble()
+          : (double.tryParse(json['weight_kg']?.toString() ?? '0') ?? 0.0),
+      condition: json['condition'] as String? ?? 'clean',
+      price: json['price'] is int
+          ? json['price'] as int
+          : (num.tryParse(json['price']?.toString() ?? '0')?.toInt() ?? 0),
+      isFree: json['is_free'] is bool
+          ? json['is_free'] as bool
+          : (json['is_free']?.toString() == '1' || json['is_free']?.toString() == 'true'),
+      generalLocation: json['general_location'] as String? ?? '',
+      distanceKm: json['distance_km'] is num
+          ? (json['distance_km'] as num).toDouble()
+          : (double.tryParse(json['distance_km']?.toString() ?? '2.5') ?? 2.5),
       description: json['description'] as String? ?? '',
       imageUrl: json['image_url'] as String?,
       localAsset: json['local_asset'] as String?,
