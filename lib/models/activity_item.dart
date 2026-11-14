@@ -55,6 +55,8 @@ class ActivityItem {
         return Icons.storefront_outlined;
       case 'material_request':
         return Icons.assignment_outlined;
+      case 'plastic_analysis':
+        return Icons.document_scanner_outlined;
       case 'handover_request':
         if (status == 'utilization_confirmed' || status == 'completed') {
           return Icons.check_circle_outline;

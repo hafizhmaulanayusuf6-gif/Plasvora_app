@@ -6,16 +6,20 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/widgets/plasvora_header.dart';
 import '../../models/plastic_analysis.dart';
+import '../../viewmodels/marketplace_viewmodel.dart';
 import '../../viewmodels/navigation_viewmodel.dart';
+import '../marketplace/create_material_listing_screen.dart';
 
 class AnalysisResultScreen extends StatefulWidget {
   final PlasticAnalysisResult result;
   final NavigationViewModel navigationViewModel;
+  final MarketplaceViewModel? marketplaceViewModel;
 
   const AnalysisResultScreen({
     super.key,
     required this.result,
     required this.navigationViewModel,
+    this.marketplaceViewModel,
   });
 
   @override
@@ -1292,50 +1296,122 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
 
   /// 5. Action Buttons
   Widget _buildActionButtons(BuildContext context) {
+    final canSell = widget.marketplaceViewModel != null;
     return Column(
       children: [
+        // ─── Tombol Utama: Jual Material Ini ───────────────────────
+        if (canSell)
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => CreateMaterialListingScreen(
+                      viewModel: widget.marketplaceViewModel!,
+                      initialAnalysis: widget.result,
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.sell_outlined, size: 20),
+              label: Text(
+                'Jual Material Ini',
+                style: AppTypography.labelLg(color: Colors.white),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: const StadiumBorder(),
+                elevation: 4,
+                shadowColor: const Color(0x33004330),
+              ),
+            ),
+          ),
+        if (canSell) const SizedBox(height: 10),
+
+        // ─── Tombol Sekunder: Cari Penerima di Marketplace ─────────
         SizedBox(
           width: double.infinity,
-          height: 52,
-          child: ElevatedButton(
-            onPressed: () {
-              setState(() => _isSearchingPartners = true);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Membuka Marketplace untuk mencari penerima material...'),
-                  behavior: SnackBarBehavior.floating,
-                  duration: Duration(seconds: 2),
+          height: canSell ? 48 : 52,
+          child: canSell
+              ? OutlinedButton.icon(
+                  onPressed: () {
+                    setState(() => _isSearchingPartners = true);
+                    Navigator.of(context).pop();
+                    widget.navigationViewModel.goToMarketplace();
+                  },
+                  icon: const Icon(
+                    Icons.location_on,
+                    size: 20,
+                    color: AppColors.primary,
+                  ),
+                  label: Text(
+                    _isSearchingPartners
+                        ? 'Membuka Marketplace...'
+                        : 'Cari Penerima Material di Marketplace',
+                    style: AppTypography.labelMd(color: AppColors.primary)
+                        .copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(
+                        color: AppColors.primary.withValues(alpha: 0.5)),
+                    shape: const StadiumBorder(),
+                  ),
+                )
+              : ElevatedButton.icon(
+                  onPressed: () {
+                    setState(() => _isSearchingPartners = true);
+                    Navigator.of(context).pop();
+                    widget.navigationViewModel.goToMarketplace();
+                  },
+                  icon: const Icon(Icons.location_on, size: 20, color: Colors.white),
+                  label: Text(
+                    _isSearchingPartners
+                        ? 'Membuka Marketplace...'
+                        : 'Cari Penerima Material di Marketplace',
+                    style: AppTypography.labelLg(color: Colors.white),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: const StadiumBorder(),
+                    elevation: 4,
+                  ),
                 ),
-              );
-              // Navigate to Marketplace tab
+        ),
+        const SizedBox(height: 10),
+
+        // ─── Tombol Tersier: Ajukan Kebutuhan ──────────────────────
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: OutlinedButton.icon(
+            onPressed: () {
               Navigator.of(context).pop();
               widget.navigationViewModel.goToMarketplace();
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              shape: const StadiumBorder(),
-              elevation: 4,
-              shadowColor: const Color(0x33004330),
+            icon: const Icon(
+              Icons.post_add,
+              size: 18,
+              color: AppColors.primary,
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.location_on, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  _isSearchingPartners
-                      ? 'Membuka Marketplace...'
-                      : 'Cari Penerima Material',
-                  style: AppTypography.labelLg(color: Colors.white),
-                ),
-                const SizedBox(width: 6),
-                const Icon(Icons.arrow_forward, size: 18),
-              ],
+            label: Text(
+              'Cari / Ajukan Kebutuhan (${widget.result.polymerCategory}) di Marketplace',
+              style: AppTypography.labelMd(color: AppColors.primary)
+                  .copyWith(fontWeight: FontWeight.w600),
+            ),
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(
+                  color: AppColors.primary.withValues(alpha: 0.5)),
+              shape: const StadiumBorder(),
             ),
           ),
         ),
         const SizedBox(height: 10),
+
+        // ─── Info: analisis tersimpan ───────────────────────────────
         Container(
           width: double.infinity,
           height: 48,
@@ -1357,7 +1433,8 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
               const SizedBox(width: 8),
               Text(
                 'Analisis tersimpan otomatis di sistem',
-                style: AppTypography.labelMd(color: AppColors.onSurfaceVariant),
+                style:
+                    AppTypography.labelMd(color: AppColors.onSurfaceVariant),
               ),
             ],
           ),

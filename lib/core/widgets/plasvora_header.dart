@@ -57,6 +57,7 @@ class PlasvoraHeader extends StatelessWidget implements PreferredSizeWidget {
               ],
               Image.asset(
                 AppAssets.logo,
+                width: 32,
                 height: 32,
                 fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) =>

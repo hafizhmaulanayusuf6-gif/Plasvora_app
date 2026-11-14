@@ -27,5 +27,6 @@ class ApiConfig {
   static String materialRequestMatches(int id) => '$baseUrl/material-requests/$id/matches';
   static String handoverRequestDetail(int id) => '$baseUrl/handover-requests/$id';
   static String updateHandoverStatus(int id) => '$baseUrl/handover-requests/$id/status';
+  static String analysisDetail(int id) => '$baseUrl/analyses/$id';
 }
 

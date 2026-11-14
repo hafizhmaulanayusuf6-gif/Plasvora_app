@@ -326,5 +326,635 @@ backup_activity_analyzer_fix/
 Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_activity_analyzer_fix\lib\views\activity\activity_screen.dart" "C:\Project\Plasvora_app\lib\views\activity\activity_screen.dart" -Force
 ```
 
+---
+
+## 11. Backup Backend Rate Limiting Fix (SEC-001 & SEC-007)
+
+**Tanggal**: 13 November 2026  
+**Tujuan**:
+1. SEC-001: Menerapkan rate limiting pada login (5 req/menit per email+IP hash, 60 req/menit per IP) dan registrasi (3 req/menit per IP, 20 req/jam per IP).
+2. SEC-007: Menerapkan rate limiting pada analisis plastik (3 req/menit per user Sanctum, 20 req/hari per user Sanctum).
+3. Penyiapan unit/feature tests untuk skenario rate limiting tanpa menjalankannya.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_rate_limiting\`
+
+Struktur Folder Backup:
+```
+backup_rate_limiting/
+├── app/
+│   └── Providers/
+│       └── AppServiceProvider.php
+├── routes/
+│   └── api.php
+└── tests/
+    └── Feature/
+        ├── AuthTest.php
+        └── ActivityAndAnalysisTest.php
+```
+
+### File yang Di-backup Sebelum Diubah:
+1. `app/Providers/AppServiceProvider.php` (`C:\xampp\htdocs\backend_plasvora\app\Providers\AppServiceProvider.php`)
+2. `routes/api.php` (`C:\xampp\htdocs\backend_plasvora\routes\api.php`)
+3. `tests/Feature/AuthTest.php` (`C:\xampp\htdocs\backend_plasvora\tests\Feature\AuthTest.php`)
+4. `tests/Feature/ActivityAndAnalysisTest.php` (`C:\xampp\htdocs\backend_plasvora\tests\Feature\ActivityAndAnalysisTest.php`)
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_rate_limiting\app\Providers\AppServiceProvider.php" "C:\xampp\htdocs\backend_plasvora\app\Providers\AppServiceProvider.php" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_rate_limiting\routes\api.php" "C:\xampp\htdocs\backend_plasvora\routes\api.php" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_rate_limiting\tests\Feature\AuthTest.php" "C:\xampp\htdocs\backend_plasvora\tests\Feature\AuthTest.php" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_rate_limiting\tests\Feature\ActivityAndAnalysisTest.php" "C:\xampp\htdocs\backend_plasvora\tests\Feature\ActivityAndAnalysisTest.php" -Force
+```
+
+---
+
+## 12. Backup Penambahan Test Coverage Rate Limiting (SEC-001 & SEC-007)
+
+**Tanggal**: 13 November 2026  
+**Tujuan**:
+1. Menambahkan pengujian rate limiting login 60 permintaan/menit per IP.
+2. Menambahkan pengujian rate limiting registrasi 20 permintaan/jam per IP.
+3. Menambahkan pengujian rate limiting analisis 20 permintaan/hari per user.
+4. Menambahkan pengujian verifikasi permintaan analisis yang dibatasi (throttled) tidak memanggil layanan Gemini API dan tidak menyimpan gambar ke disk.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_rate_limiting_tests\`
+
+Struktur Folder Backup:
+```
+backup_rate_limiting_tests/
+└── tests/
+    └── Feature/
+        ├── AuthTest.php
+        ├── ActivityAndAnalysisTest.php
+        └── GeminiVisionAnalysisTest.php
+```
+
+### File yang Di-backup Sebelum Diubah:
+1. `tests/Feature/AuthTest.php` (`C:\xampp\htdocs\backend_plasvora\tests\Feature\AuthTest.php`)
+2. `tests/Feature/ActivityAndAnalysisTest.php` (`C:\xampp\htdocs\backend_plasvora\tests\Feature\ActivityAndAnalysisTest.php`)
+3. `tests/Feature/GeminiVisionAnalysisTest.php` (`C:\xampp\htdocs\backend_plasvora\tests\Feature\GeminiVisionAnalysisTest.php`)
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_rate_limiting_tests\tests\Feature\AuthTest.php" "C:\xampp\htdocs\backend_plasvora\tests\Feature\AuthTest.php" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_rate_limiting_tests\tests\Feature\ActivityAndAnalysisTest.php" "C:\xampp\htdocs\backend_plasvora\tests\Feature\ActivityAndAnalysisTest.php" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_rate_limiting_tests\tests\Feature\GeminiVisionAnalysisTest.php" "C:\xampp\htdocs\backend_plasvora\tests\Feature\GeminiVisionAnalysisTest.php" -Force
+```
+
+---
+
+## 13. Backup Perbaikan Kerentanan SEC-003: Race Condition Serah Terima
+
+**Tanggal**: 13 November 2026, 21:09 WIB  
+**Tujuan**:
+1. Mengamankan alur perubahan status serah terima (`PATCH /api/handover-requests/{id}/status`) dari race condition / concurrency issue saat persetujuan (approval) permintaan serah terima material.
+2. Membungkus seluruh proses perubahan status dan validasi state machine dalam `DB::transaction()` dengan row-level locking (`lockForUpdate()`) berurutan: `HandoverRequest` lalu `MaterialListing`.
+3. Memastikan ketersediaan material dicek ulang di dalam transaksi sehingga material yang sama tidak dapat disetujui lebih dari satu kali (`409 Conflict` jika material sudah bukan `available`).
+4. Menambahkan test cases komprehensif pada `HandoverRequestTest.php`.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_sec003\`
+
+Struktur Folder Backup:
+```
+backup_sec003/
+├── app/
+│   └── Http/
+│       └── Controllers/
+│           └── Api/
+│               └── HandoverRequestController.php
+└── tests/
+    └── Feature/
+        └── HandoverRequestTest.php
+```
+
+### File yang Di-backup Sebelum Diubah:
+1. `app/Http/Controllers/Api/HandoverRequestController.php` (`C:\xampp\htdocs\backend_plasvora\app\Http\Controllers\Api\HandoverRequestController.php`)
+2. `tests/Feature/HandoverRequestTest.php` (`C:\xampp\htdocs\backend_plasvora\tests\Feature\HandoverRequestTest.php`)
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_sec003\app\Http\Controllers\Api\HandoverRequestController.php" "C:\xampp\htdocs\backend_plasvora\app\Http\Controllers\Api\HandoverRequestController.php" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_sec003\tests\Feature\HandoverRequestTest.php" "C:\xampp\htdocs\backend_plasvora\tests\Feature\HandoverRequestTest.php" -Force
+```
+
+---
+
+## 14. Backup Pematangan Fitur Marketplace (Integrasi Backend & Filter Nyata)
+
+**Tanggal**: 14 November 2026  
+**Tujuan**:
+1. Menghubungkan seluruh interaksi pengguna pada Marketplace secara nyata ke backend API (`GET /api/materials` & `GET /api/materials/{id}`).
+2. Menghapus filter semu / SnackBar tiruan dan menggantikannya dengan query backend aktual (kategori, kondisi, rentang berat, lokasi, pencarian teks dengan debounce).
+3. Memperbaiki model `MaterialListing` agar mendukung `ownerName` dari respons backend dan tidak menampilkan jarak fiktif jika tidak disediakan backend.
+4. Menambahkan navigasi dan halaman detail material (`MaterialDetailScreen`) yang mengambil data aktual via `GET /api/materials/{id}`.
+5. Memastikan modal filter lanjutan (Advanced Filter Modal) bekerja nyata untuk tombol Terapkan Filter dan Reset.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_marketplace_maturing\`
+
+Struktur Folder Backup:
+```
+backup_marketplace_maturing/
+└── lib/
+    ├── models/
+    │   └── material_listing.dart
+    ├── repositories/
+    │   └── material_repository.dart
+    ├── viewmodels/
+    │   └── marketplace_viewmodel.dart
+    └── views/
+        └── marketplace/
+            └── marketplace_screen.dart
+```
+
+### File yang Di-backup Sebelum Diubah:
+1. `lib/models/material_listing.dart`
+2. `lib/repositories/material_repository.dart`
+3. `lib/viewmodels/marketplace_viewmodel.dart`
+4. `lib/views/marketplace/marketplace_screen.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_marketplace_maturing\lib\models\material_listing.dart" "C:\Project\Plasvora_app\lib\models\material_listing.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_marketplace_maturing\lib\repositories\material_repository.dart" "C:\Project\Plasvora_app\lib\repositories\material_repository.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_marketplace_maturing\lib\viewmodels\marketplace_viewmodel.dart" "C:\Project\Plasvora_app\lib\viewmodels\marketplace_viewmodel.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_marketplace_maturing\lib\views\marketplace\marketplace_screen.dart" "C:\Project\Plasvora_app\lib\views\marketplace\marketplace_screen.dart" -Force
+```
+
+---
+
+## 15. Backup Pematangan Smart Matching & Material Request
+
+**Tanggal**: 14 November 2026  
+**Tujuan**:
+1. Menghubungkan fitur Material Request (Kebutuhan Material) dan Smart Matching (pencocokan berbasis aturan) dengan backend API Plasvora.
+2. Mengintegrasikan CRUD Material Request (`GET /api/material-requests`, `POST /api/material-requests`, `GET /api/material-requests/{id}`, `PATCH /api/material-requests/{id}`, `DELETE /api/material-requests/{id}`).
+3. Menghubungkan algoritma Smart Matching backend (`GET /api/material-requests/{id}/matches` dan `GET /api/materials/{id}/matches`) ke tampilan frontend dengan skor transparan berbasis aturan.
+4. Menambahkan navigasi terpadu antara Marketplace, Material Request, Smart Matching, Material Detail, dan hasil Analisis Plastik.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_smart_matching_and_material_request\`
+
+Struktur Folder Backup:
+```
+backup_smart_matching_and_material_request/
+└── lib/
+    ├── main.dart
+    ├── models/
+    │   └── material_request_item.dart
+    ├── repositories/
+    │   └── transaction_repository.dart
+    └── views/
+        ├── analysis/
+        │   └── analysis_result_screen.dart
+        └── marketplace/
+            ├── marketplace_screen.dart
+            └── material_detail_screen.dart
+```
+
+### File yang Di-backup Sebelum Diubah:
+1. `lib/models/material_request_item.dart`
+2. `lib/repositories/transaction_repository.dart`
+3. `lib/main.dart`
+4. `lib/views/marketplace/marketplace_screen.dart`
+5. `lib/views/marketplace/material_detail_screen.dart`
+6. `lib/views/analysis/analysis_result_screen.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_smart_matching_and_material_request\lib\models\material_request_item.dart" "C:\Project\Plasvora_app\lib\models\material_request_item.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_smart_matching_and_material_request\lib\repositories\transaction_repository.dart" "C:\Project\Plasvora_app\lib\repositories\transaction_repository.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_smart_matching_and_material_request\lib\main.dart" "C:\Project\Plasvora_app\lib\main.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_smart_matching_and_material_request\lib\views\marketplace\marketplace_screen.dart" "C:\Project\Plasvora_app\lib\views\marketplace\marketplace_screen.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_smart_matching_and_material_request\lib\views\marketplace\material_detail_screen.dart" "C:\Project\Plasvora_app\lib\views\marketplace\material_detail_screen.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_smart_matching_and_material_request\lib\views\analysis\analysis_result_screen.dart" "C:\Project\Plasvora_app\lib\views\analysis\analysis_result_screen.dart" -Force
+```
+
+---
+
+## 16. Backup Perbaikan Error & Warning Flutter (Smart Matching & Analysis Navigation)
+
+**Tanggal**: 14 November 2026  
+**Tujuan**:
+1. Memperbaiki error parameter `ownerId` pada constructor `HandoverItem` di `MockTransactionRepository`.
+2. Memperbaiki undefined getter `polymerType` menjadi `polymerCategory` pada `PlasticAnalysisResult` di `AnalysisResultScreen`.
+3. Menghapus unused import `material_listing.dart` pada `MatchingResultsScreen`.
+4. Mengganti parameter deprecated `value` menjadi `initialValue` pada `DropdownButtonFormField` di `CreateMaterialRequestScreen`.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_flutter_fixes\`
+
+Struktur Folder Backup:
+```
+backup_flutter_fixes/
+└── lib/
+    ├── repositories/
+    │   └── transaction_repository.dart
+    └── views/
+        ├── analysis/
+        │   └── analysis_result_screen.dart
+        ├── matching/
+        │   └── matching_results_screen.dart
+        └── material_request/
+            └── create_material_request_screen.dart
+```
+
+### File yang Di-backup Sebelum Diubah:
+1. `lib/repositories/transaction_repository.dart`
+2. `lib/views/analysis/analysis_result_screen.dart`
+3. `lib/views/matching/matching_results_screen.dart`
+4. `lib/views/material_request/create_material_request_screen.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_flutter_fixes\lib\repositories\transaction_repository.dart" "C:\Project\Plasvora_app\lib\repositories\transaction_repository.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_flutter_fixes\lib\views\analysis\analysis_result_screen.dart" "C:\Project\Plasvora_app\lib\views\analysis\analysis_result_screen.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_flutter_fixes\lib\views\matching\matching_results_screen.dart" "C:\Project\Plasvora_app\lib\views\matching\matching_results_screen.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_flutter_fixes\lib\views\material_request\create_material_request_screen.dart" "C:\Project\Plasvora_app\lib\views\material_request\create_material_request_screen.dart" -Force
+```
+
+---
+
+## 17. Backup Perbaikan Penanganan Error ApiException (Status: null Elimination)
+
+**Tanggal**: 14 November 2026  
+**Tujuan**:
+1. Memperbaiki method `toString()` pada `ApiException` di `lib/core/network/api_client.dart` agar suffix `(Status: $statusCode)` hanya disertakan saat `statusCode` benar-benar ada (tidak bernilai null).
+2. Memperbaiki penanganan error pada `MaterialRequestViewModel` di `lib/viewmodels/material_request_viewmodel.dart` agar mempertahankan pesan error asli tanpa suffix palsu `(Status: null)`.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_api_exception_status_null\`
+
+Struktur Folder Backup:
+```
+backup_api_exception_status_null/
+└── lib/
+    ├── core/
+    │   └── network/
+    │       └── api_client.dart
+    └── viewmodels/
+        └── material_request_viewmodel.dart
+```
+
+### File yang Di-backup Sebelum Diubah:
+1. `lib/core/network/api_client.dart`
+2. `lib/viewmodels/material_request_viewmodel.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_api_exception_status_null\lib\core\network\api_client.dart" "C:\Project\Plasvora_app\lib\core\network\api_client.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_api_exception_status_null\lib\viewmodels\material_request_viewmodel.dart" "C:\Project\Plasvora_app\lib\viewmodels\material_request_viewmodel.dart" -Force
+```
 
 
+
+
+
+
+
+
+## 18. Backup Integrasi Hasil Analisis, Marketplace, dan Riwayat Aktivitas
+
+**Tanggal**: 14 November 2026  
+**Tujuan**:
+1. Mengintegrasikan hasil analisis plastik dengan form pembuatan penawaran material Marketplace ("Jual Material Ini") secara pre-filled tanpa memasukkan data fiktif untuk berat/lokasi.
+2. Mengintegrasikan riwayat analisis plastik ke halaman Aktivitas (tab filter jejak & riwayat analisis, kartu riwayat dengan thumbnail foto, polimer, tanggal, dan navigasi ke detail hasil analisis).
+3. Mendukung pembukaan kembali hasil analisis tersimpan tanpa request ulang ke AI Gemini serta tombol "Jual Material Ini" dari hasil analisis riwayat.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_analysis_marketplace_activity_fe\`
+
+Struktur Folder Backup:
+```
+backup_analysis_marketplace_activity_fe/
+└── lib/
+    ├── core/
+    │   └── network/
+    │       └── api_config.dart
+    ├── models/
+    │   └── activity_item.dart
+    ├── repositories/
+    │   └── activity_repository.dart
+    ├── viewmodels/
+    │   └── activity_viewmodel.dart
+    └── views/
+        ├── main_navigation_screen.dart
+        ├── activity/
+        │   └── activity_screen.dart
+        ├── analysis/
+        │   ├── analysis_result_screen.dart
+        │   └── analysis_screen.dart
+        └── marketplace/
+            └── marketplace_screen.dart
+```
+
+### File yang Di-backup Sebelum Diubah:
+1. `lib/core/network/api_config.dart`
+2. `lib/models/activity_item.dart`
+3. `lib/repositories/activity_repository.dart`
+4. `lib/viewmodels/activity_viewmodel.dart`
+5. `lib/views/main_navigation_screen.dart`
+6. `lib/views/activity/activity_screen.dart`
+7. `lib/views/analysis/analysis_result_screen.dart`
+8. `lib/views/analysis/analysis_screen.dart`
+9. `lib/views/marketplace/marketplace_screen.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_analysis_marketplace_activity_fe\lib\core\network\api_config.dart" "C:\Project\Plasvora_app\lib\core\network\api_config.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_analysis_marketplace_activity_fe\lib\models\activity_item.dart" "C:\Project\Plasvora_app\lib\models\activity_item.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_analysis_marketplace_activity_fe\lib\repositories\activity_repository.dart" "C:\Project\Plasvora_app\lib\repositories\activity_repository.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_analysis_marketplace_activity_fe\lib\viewmodels\activity_viewmodel.dart" "C:\Project\Plasvora_app\lib\viewmodels\activity_viewmodel.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_analysis_marketplace_activity_fe\lib\views\main_navigation_screen.dart" "C:\Project\Plasvora_app\lib\views\main_navigation_screen.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_analysis_marketplace_activity_fe\lib\views\activity\activity_screen.dart" "C:\Project\Plasvora_app\lib\views\activity\activity_screen.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_analysis_marketplace_activity_fe\lib\views\analysis\analysis_result_screen.dart" "C:\Project\Plasvora_app\lib\views\analysis\analysis_result_screen.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_analysis_marketplace_activity_fe\lib\views\analysis\analysis_screen.dart" "C:\Project\Plasvora_app\lib\views\analysis\analysis_screen.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_analysis_marketplace_activity_fe\lib\views\marketplace\marketplace_screen.dart" "C:\Project\Plasvora_app\lib\views\marketplace\marketplace_screen.dart" -Force
+```
+
+## 19. Backup Perbaikan 7 Temuan Flutter Analyze (Info Unnecessary Underscores & Warning Unused Method)
+
+**Tanggal**: 14 November 2026  
+**Tujuan**:
+1. Memperbaiki 6 temuan `info - Unnecessary use of multiple underscores` pada `lib/views/activity/activity_screen.dart` dan `lib/views/marketplace/create_material_listing_screen.dart` dengan menggunakan wildcard variable `_` tunggal yang konsisten dengan standar Dart modern (Dart 3.7+).
+2. Memperbaiki 1 temuan `warning - The declaration '_showOfferMaterialBottomSheet' isn't referenced` pada `lib/views/marketplace/marketplace_screen.dart` dengan menghapus fungsi modal bottom sheet privat lama yang sudah sepenuhnya digantikan oleh halaman terdedikasi `CreateMaterialListingScreen`.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_flutter_analyze_7_fixes\`
+
+Struktur Folder Backup:
+```
+backup_flutter_analyze_7_fixes/
+└── lib/
+    └── views/
+        ├── activity/
+        │   └── activity_screen.dart
+        └── marketplace/
+            ├── create_material_listing_screen.dart
+            └── marketplace_screen.dart
+```
+
+### File yang Di-backup Sebelum Diubah:
+1. `lib/views/activity/activity_screen.dart`
+2. `lib/views/marketplace/create_material_listing_screen.dart`
+3. `lib/views/marketplace/marketplace_screen.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_flutter_analyze_7_fixes\lib\views\activity\activity_screen.dart" "C:\Project\Plasvora_app\lib\views\activity\activity_screen.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_flutter_analyze_7_fixes\lib\views\marketplace\create_material_listing_screen.dart" "C:\Project\Plasvora_app\lib\views\marketplace\create_material_listing_screen.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_flutter_analyze_7_fixes\lib\views\marketplace\marketplace_screen.dart" "C:\Project\Plasvora_app\lib\views\marketplace\marketplace_screen.dart" -Force
+```
+
+## 20. Backup Penggantian Logo Asli Plasvora & Penyesuaian Sudut Melengkung Search Bar Marketplace
+
+**Tanggal**: 14 November 2026  
+**Tujuan**:
+1. Mengganti asset logo placeholder lama (`BioLoop Technologies` pada `assets/images/logo.png`) dengan logo resmi asli Plasvora yang bersumber dari asset aplikasi (`assets/icon/Icon_app.png`), sehingga tampilan logo pada header aplikasi (`PlasvoraHeader`) dan halaman login (`LoginScreen`) menggunakan logo identitas asli Plasvora.
+2. Memperbaiki search bar pada halaman Marketplace (`lib/views/marketplace/marketplace_screen.dart`) yang sebelumnya memiliki ujung siku-siku tajam agar menjadi melengkung halus seirama dengan tombol filter (`borderRadius: BorderRadius.circular(14)`) dengan `clipBehavior: Clip.antiAlias` dan `filled: false` tanpa membuatnya terlalu melengkung (tidak stadium pill 999).
+3. Menyesuaikan tombol filter (tune icon) di samping search bar agar menggunakan radius seragam `BorderRadius.circular(14)`.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_logo_and_searchbar\`
+
+Struktur Folder Backup:
+```
+backup_logo_and_searchbar/
+├── assets/
+│   └── images/
+│       └── logo.png
+└── lib/
+    ├── core/
+    │   └── widgets/
+    │       └── plasvora_header.dart
+    └── views/
+        ├── auth/
+        │   └── login_screen.dart
+        └── marketplace/
+            └── marketplace_screen.dart
+```
+
+### File yang Di-backup Sebelum Diubah:
+1. `assets/images/logo.png`
+2. `lib/core/widgets/plasvora_header.dart`
+3. `lib/views/auth/login_screen.dart`
+4. `lib/views/marketplace/marketplace_screen.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_logo_and_searchbar\assets\images\logo.png" "C:\Project\Plasvora_app\assets\images\logo.png" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_logo_and_searchbar\lib\core\widgets\plasvora_header.dart" "C:\Project\Plasvora_app\lib\core\widgets\plasvora_header.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_logo_and_searchbar\lib\views\auth\login_screen.dart" "C:\Project\Plasvora_app\lib\views\auth\login_screen.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_logo_and_searchbar\lib\views\marketplace\marketplace_screen.dart" "C:\Project\Plasvora_app\lib\views\marketplace\marketplace_screen.dart" -Force
+```
+
+## 21. Backup Koreksi dan Penyesuaian UI (Posisi Logo AppBar Kiri Atas, BoxFit Login, & BorderRadius Search Bar)
+
+**Tanggal**: 14 November 2026  
+**Tujuan**:
+1. Mengonfirmasi dan memastikan posisi logo asli Plasvora berada secara absolut di **kiri atas** (leading area) AppBar horizontal berdampingan dengan teks "PLASVORA", dengan rasio aspek asli `BoxFit.contain` dan ukuran 32x32, serta mempertahankan elemen aksi notifikasi dan profil di sisi kanan.
+2. Memperbaiki tampilan logo pada halaman Login (`LoginScreen`) dengan menggunakan `BoxFit.contain` sesuai spesifikasi desain resmi.
+3. Memastikan dekorasi search bar Marketplace (`MarketplaceScreen`) konsisten menggunakan `BorderRadius.circular(14)` pada container, normal border, enabled border, dan focused border (`OutlineInputBorder`), seirama dengan tombol filter di sampingnya (radius 14), tanpa sudut siku maupun radius kapsul/pill ekstrem.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_ui_corrections_appbar_searchbar\`
+
+Struktur Folder Backup:
+```
+backup_ui_corrections_appbar_searchbar/
+└── lib/
+    ├── core/
+    │   └── widgets/
+    │       └── plasvora_header.dart
+    └── views/
+        ├── auth/
+        │   └── login_screen.dart
+        └── marketplace/
+            └── marketplace_screen.dart
+```
+
+### File yang Di-backup Sebelum Diubah:
+1. `lib/core/widgets/plasvora_header.dart`
+2. `lib/views/auth/login_screen.dart`
+3. `lib/views/marketplace/marketplace_screen.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_ui_corrections_appbar_searchbar\lib\core\widgets\plasvora_header.dart" "C:\Project\Plasvora_app\lib\core\widgets\plasvora_header.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_ui_corrections_appbar_searchbar\lib\views\auth\login_screen.dart" "C:\Project\Plasvora_app\lib\views\auth\login_screen.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_ui_corrections_appbar_searchbar\lib\views\marketplace\marketplace_screen.dart" "C:\Project\Plasvora_app\lib\views\marketplace\marketplace_screen.dart" -Force
+```
+
+
+---
+
+## 22. Backup Persistensi Login / Pemulihan Sesi (Persistent Login & Session Restoration)
+
+**Tanggal**: 14 November 2026  
+**Tujuan**:
+1. Mengatasi masalah di mana setiap kali aplikasi ditutup sepenuhnya lalu dibuka kembali, sesi login hilang dan pengguna selalu diminta login ulang ke `LoginScreen`.
+2. Mengganti implementasi penyimpanan token berbasis memori murni (`InMemoryAuthTokenStorage`) dengan penyimpanan persisten (`PersistentAuthTokenStorage`) yang menyimpan Sanctum Bearer Token ke media penyimpanan internal aplikasi secara aman dan terisolasi sandbox.
+3. Memperbaiki logika `ApiAuthRepository.getCurrentUser()` agar HANYA menghapus token dan memutus sesi ketika server backend secara eksplisit merespons status HTTP 401 Unauthorized atau 403 Forbidden. Pada kondisi gangguan jaringan, timeout, atau HTTP 500, token lokal TETAP DIPERTAHANKAN.
+4. Menambahkan state `connectionError` pada `AuthViewModel` beserta aksi `retryCheckAuthSession()` dan tampilan layar pemulihan koneksi ramah pengguna di `main.dart`, sehingga kegagalan jaringan sementara tidak menghapus akun dan pengguna dapat mencoba menghubungkan kembali sesi loginnya.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_persistent_login\`
+
+Struktur Folder Backup:
+```
+backup_persistent_login/
+├── pubspec.yaml
+└── lib/
+    ├── main.dart
+    ├── core/
+    │   └── network/
+    │       └── api_client.dart
+    ├── repositories/
+    │   └── auth_repository.dart
+    └── viewmodels/
+        └── auth_viewmodel.dart
+```
+
+### File yang Di-backup Sebelum Diubah:
+1. `pubspec.yaml`
+2. `lib/core/network/api_client.dart`
+3. `lib/repositories/auth_repository.dart`
+4. `lib/viewmodels/auth_viewmodel.dart`
+5. `lib/main.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_persistent_login\pubspec.yaml" "C:\Project\Plasvora_app\pubspec.yaml" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_persistent_login\lib\core\network\api_client.dart" "C:\Project\Plasvora_app\lib\core\network\api_client.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_persistent_login\lib\repositories\auth_repository.dart" "C:\Project\Plasvora_app\lib\repositories\auth_repository.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_persistent_login\lib\viewmodels\auth_viewmodel.dart" "C:\Project\Plasvora_app\lib\viewmodels\auth_viewmodel.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_persistent_login\lib\main.dart" "C:\Project\Plasvora_app\lib\main.dart" -Force
+```
+
+
+---
+
+## 23. Backup Penyempurnaan Keamanan Persistent Login (Flutter Secure Storage, Proteksi 403, & Migrasi Sandboxed Storage)
+
+**Tanggal**: 15 November 2026  
+**Tujuan**:
+1. Menyempurnakan penyimpanan token autentikasi agar menggunakan mekanisme Android Keystore / `FlutterSecureStorage` (terenkripsi pada level OS) dengan kompatibilitas penuh terhadap Android 7 (Samsung Galaxy A7, API 24).
+2. Menyediakan abstraksi `TokenStorage` yang lengkap (`saveToken()`, `getToken()`, `deleteToken()`, serta `clearToken()` untuk interoperabilitas).
+3. Mengoreksi aturan penanganan HTTP 403 Forbidden pada `ApiAuthRepository.getCurrentUser()` agar TIDAK langsung menghapus token atau memutus sesi pengguna (karena HTTP 403 merupakan status penolakan hak akses/authorization, bukan kredensial tidak valid/unauthenticated). Token hanya dihapus pada status HTTP 401 Unauthorized.
+4. Menambahkan mekanisme migrasi transparan jika berkas lama `.plasvora_auth_token` ditemukan, memindahkannya ke secure storage dan memverifikasi keterbacaannya sebelum berkas lama dihapus.
+5. Mencegah race condition pada alur pemulihan sesi dengan pengaman single-execution di `AuthViewModel`.
+6. Menambahkan suite pengujian komprehensif pada `test/persistent_login_test.dart` yang mencakup 13 skenario keamanan dan siklus sesi.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_persistent_login_security\`
+
+Struktur Folder Backup:
+```
+backup_persistent_login_security/
+├── pubspec.yaml
+├── test/
+│   └── persistent_login_test.dart
+└── lib/
+    ├── main.dart
+    ├── core/
+    │   └── network/
+    │       └── api_client.dart
+    ├── repositories/
+    │   └── auth_repository.dart
+    └── viewmodels/
+        └── auth_viewmodel.dart
+```
+
+### File yang Di-backup Sebelum Diubah:
+1. `pubspec.yaml`
+2. `lib/core/network/api_client.dart`
+3. `lib/repositories/auth_repository.dart`
+4. `lib/viewmodels/auth_viewmodel.dart`
+5. `lib/main.dart`
+6. `test/persistent_login_test.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_persistent_login_security\pubspec.yaml" "C:\Project\Plasvora_app\pubspec.yaml" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_persistent_login_security\lib\core\network\api_client.dart" "C:\Project\Plasvora_app\lib\core\network\api_client.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_persistent_login_security\lib\repositories\auth_repository.dart" "C:\Project\Plasvora_app\lib\repositories\auth_repository.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_persistent_login_security\lib\viewmodels\auth_viewmodel.dart" "C:\Project\Plasvora_app\lib\viewmodels\auth_viewmodel.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_persistent_login_security\lib\main.dart" "C:\Project\Plasvora_app\lib\main.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_persistent_login_security\test\persistent_login_test.dart" "C:\Project\Plasvora_app\test\persistent_login_test.dart" -Force
+```
+
+
+---
+
+## 24. Backup Perbaikan Analyzer & Koreksi Final Test Persistent Login
+
+**Tanggal**: 15 November 2026  
+**Tujuan**:
+1. Memperbaiki temuan analyzer pada `lib/core/network/api_client.dart`:
+   - Menerapkan initializing formal (`this.directoryProvider`) pada constructor `SecureAuthTokenStorage`.
+   - Menghapus unnecessary non-null assertion (`!`) pada pemanggilan `directoryProvider()`.
+   - Menerapkan super parameters pada constructor `PersistentAuthTokenStorage`.
+2. Memperbaiki peringatan deprecated member use pada `lib/main.dart` dengan mengganti `withOpacity(...)` menjadi `withValues(alpha: ...)`.
+3. Memperbaiki error kompilasi dan peringatan import pada `test/persistent_login_test.dart`:
+   - Memperbaiki parameter constructor `AuthViewModel(authRepository: authRepo)` dari sebelumnya `authRepo: authRepo`.
+   - Menghapus unused import `dart:async` dan `user_profile.dart`.
+4. Melakukan audit komprehensif terhadap Android Auto Backup dan SharedPreferences terenkripsi (`FlutterSecureStorage.xml`) pada `flutter_secure_storage: 9.2.4`.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_persistent_login_final_correction\`
+
+Struktur Folder Backup:
+```
+backup_persistent_login_final_correction/
+├── lib/
+│   ├── main.dart
+│   └── core/
+│       └── network/
+│           └── api_client.dart
+└── test/
+    └── persistent_login_test.dart
+```
+
+### File yang Di-backup Sebelum Diubah:
+1. `lib/core/network/api_client.dart`
+2. `lib/main.dart`
+3. `test/persistent_login_test.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_persistent_login_final_correction\lib\core\network\api_client.dart" "C:\Project\Plasvora_app\lib\core\network\api_client.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_persistent_login_final_correction\lib\main.dart" "C:\Project\Plasvora_app\lib\main.dart" -Force
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_persistent_login_final_correction\test\persistent_login_test.dart" "C:\Project\Plasvora_app\test\persistent_login_test.dart" -Force
+```
+
+
+---
+
+## 25. Backup Hotfix Null Safety Directory Provider pada Persistent Login
+
+**Tanggal**: 15 November 2026  
+**Tujuan**:
+Memperbaiki error Dart flow analysis pada `lib/core/network/api_client.dart` di mana properti publik nullable `directoryProvider` tidak dapat dipromosikan langsung secara aman tanpa binding variabel lokal (`The function can't be unconditionally invoked because it can be 'null'`). Menerapkan pola idiomatik Dart dengan binding variabel lokal `final provider = directoryProvider;` sebelum null check pada method `_migrateLegacyTokenIfNeeded()` dan `deleteToken()`.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_directory_provider_null_safety\`
+
+Struktur Folder Backup:
+```
+backup_directory_provider_null_safety/
+└── lib/
+    └── core/
+        └── network/
+            └── api_client.dart
+```
+
+### File yang Di-backup Sebelum Diubah:
+1. `lib/core/network/api_client.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_directory_provider_null_safety\lib\core\network\api_client.dart" "C:\Project\Plasvora_app\lib\core\network\api_client.dart" -Force
+```

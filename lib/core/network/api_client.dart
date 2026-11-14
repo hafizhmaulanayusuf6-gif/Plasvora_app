@@ -2,8 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
+import 'package:path_provider/path_provider.dart';
 
 class ApiException implements Exception {
   final String message;
@@ -13,16 +15,28 @@ class ApiException implements Exception {
   ApiException(this.message, {this.statusCode, this.errors});
 
   @override
-  String toString() => 'ApiException: $message (Status: $statusCode)';
+  String toString() {
+    if (statusCode != null) {
+      return 'ApiException: $message (Status: $statusCode)';
+    }
+    return 'ApiException: $message';
+  }
 }
 
-abstract class AuthTokenStorage {
+/// Abstraksi penyimpanan token autentikasi (TokenStorage).
+///
+/// Menyediakan method lengkap untuk menyimpan, membaca, dan menghapus
+/// Sanctum Bearer Token secara terisolasi dan persisten.
+abstract class TokenStorage {
   Future<String?> getToken();
   Future<void> saveToken(String token);
+  Future<void> deleteToken();
   Future<void> clearToken();
 }
 
-class InMemoryAuthTokenStorage implements AuthTokenStorage {
+typedef AuthTokenStorage = TokenStorage;
+
+class InMemoryAuthTokenStorage implements TokenStorage {
   String? _token;
 
   @override
@@ -32,18 +46,168 @@ class InMemoryAuthTokenStorage implements AuthTokenStorage {
   Future<void> saveToken(String token) async => _token = token;
 
   @override
-  Future<void> clearToken() async => _token = null;
+  Future<void> deleteToken() async => _token = null;
+
+  @override
+  Future<void> clearToken() async => deleteToken();
+}
+
+/// Implementasi penyimpanan token terenkripsi level sistem operasi.
+///
+/// Menggunakan Android Keystore melalui `FlutterSecureStorage` dengan opsi
+/// `encryptedSharedPreferences: true` dan `resetOnError: true` agar kompatibel
+/// penuh dengan Android 7.0 (API 24, Samsung Galaxy A7).
+///
+/// Juga menyediakan alur migrasi transparan jika berkas token sandbox sebelumnya
+/// (`.plasvora_auth_token`) ditemukan di memori perangkat.
+class SecureAuthTokenStorage implements TokenStorage {
+  static const String _keyToken = 'plasvora_auth_token_secure';
+  static const String _legacyTokenFileName = '.plasvora_auth_token';
+
+  final FlutterSecureStorage _storage;
+  final Future<Directory> Function()? directoryProvider;
+  String? _cachedToken;
+  bool _isInitialized = false;
+
+  SecureAuthTokenStorage({
+    FlutterSecureStorage? secureStorage,
+    this.directoryProvider,
+  })  : _storage = secureStorage ??
+            const FlutterSecureStorage(
+              aOptions: AndroidOptions(
+                encryptedSharedPreferences: true,
+                resetOnError: true,
+              ),
+            );
+
+  /// Memeriksa dan memigrasikan token lama dari `.plasvora_auth_token` jika ada.
+  /// Berkas lama HANYA dihapus jika token berhasil disimpan dan diverifikasi
+  /// dari secure storage.
+  Future<void> _migrateLegacyTokenIfNeeded() async {
+    try {
+      Directory dir;
+      final provider = directoryProvider;
+      if (provider != null) {
+        dir = await provider();
+      } else {
+        try {
+          dir = await getApplicationDocumentsDirectory();
+        } catch (_) {
+          dir = Directory.systemTemp;
+        }
+      }
+
+      final legacyFile = File('${dir.path}/$_legacyTokenFileName');
+      if (await legacyFile.exists()) {
+        final legacyContent = await legacyFile.readAsString();
+        final trimmed = legacyContent.trim();
+        if (trimmed.isNotEmpty) {
+          // 1. Simpan ke secure storage
+          await _storage.write(key: _keyToken, value: trimmed);
+          // 2. Verifikasi keterbacaan kembali dari secure storage
+          final verified = await _storage.read(key: _keyToken);
+          if (verified == trimmed) {
+            // 3. Hapus berkas lama hanya setelah sukses terverifikasi
+            await legacyFile.delete();
+          }
+        } else {
+          await legacyFile.delete();
+        }
+      }
+    } catch (_) {
+      // Jika terjadi error pada migrasi, jangan hapus file lama
+    }
+  }
+
+  @override
+  Future<String?> getToken() async {
+    if (_isInitialized && _cachedToken != null) {
+      return _cachedToken;
+    }
+
+    try {
+      await _migrateLegacyTokenIfNeeded();
+
+      final token = await _storage.read(key: _keyToken);
+      if (token != null && token.trim().isNotEmpty) {
+        _cachedToken = token.trim();
+      } else {
+        _cachedToken = null;
+      }
+    } catch (_) {
+      _cachedToken = null;
+    } finally {
+      _isInitialized = true;
+    }
+
+    return _cachedToken;
+  }
+
+  @override
+  Future<void> saveToken(String token) async {
+    final trimmed = token.trim();
+    if (trimmed.isEmpty) return;
+
+    _cachedToken = trimmed;
+    _isInitialized = true;
+
+    try {
+      await _storage.write(key: _keyToken, value: trimmed);
+    } catch (_) {
+      // Token tetap berada di memori cache sesi aktif jika operasi IO terkendala
+    }
+  }
+
+  @override
+  Future<void> deleteToken() async {
+    _cachedToken = null;
+    _isInitialized = true;
+
+    try {
+      await _storage.delete(key: _keyToken);
+    } catch (_) {}
+
+    // Hapus juga file legacy jika masih tersisa
+    try {
+      Directory dir;
+      final provider = directoryProvider;
+      if (provider != null) {
+        dir = await provider();
+      } else {
+        try {
+          dir = await getApplicationDocumentsDirectory();
+        } catch (_) {
+          dir = Directory.systemTemp;
+        }
+      }
+      final legacyFile = File('${dir.path}/$_legacyTokenFileName');
+      if (await legacyFile.exists()) {
+        await legacyFile.delete();
+      }
+    } catch (_) {}
+  }
+
+  @override
+  Future<void> clearToken() => deleteToken();
+}
+
+/// Alias kompatibilitas untuk kode atau pengujian yang merujuk PersistentAuthTokenStorage
+class PersistentAuthTokenStorage extends SecureAuthTokenStorage {
+  PersistentAuthTokenStorage({
+    super.secureStorage,
+    super.directoryProvider,
+  });
 }
 
 class ApiClient {
   final http.Client _client;
-  final AuthTokenStorage tokenStorage;
+  final TokenStorage tokenStorage;
 
   ApiClient({
     http.Client? client,
-    AuthTokenStorage? tokenStorage,
+    TokenStorage? tokenStorage,
   })  : _client = client ?? http.Client(),
-        tokenStorage = tokenStorage ?? InMemoryAuthTokenStorage();
+        tokenStorage = tokenStorage ?? SecureAuthTokenStorage();
 
   /// Factory asynchronous untuk menginisialisasi ApiClient dengan SecurityContext
   /// yang menyertakan sertifikat root resmi ISRG Root X1 (Let's Encrypt).
@@ -53,10 +217,14 @@ class ApiClient {
   /// Android 7.0 (API 24) tanpa mengorbankan validasi sertifikat maupun hostname.
   static Future<ApiClient> create({
     http.Client? client,
-    AuthTokenStorage? tokenStorage,
+    TokenStorage? tokenStorage,
   }) async {
+    final effectiveStorage = tokenStorage ?? SecureAuthTokenStorage();
+    // Inisialisasi awal token dari penyimpanan lokal
+    await effectiveStorage.getToken();
+
     if (client != null) {
-      return ApiClient(client: client, tokenStorage: tokenStorage);
+      return ApiClient(client: client, tokenStorage: effectiveStorage);
     }
 
     try {
@@ -76,7 +244,7 @@ class ApiClient {
 
       return ApiClient(
         client: IOClient(ioHttpClient),
-        tokenStorage: tokenStorage,
+        tokenStorage: effectiveStorage,
       );
     } catch (e) {
       // Tangani kegagalan secara eksplisit tanpa silent fallback
@@ -89,6 +257,7 @@ class ApiClient {
 
   Future<String?> getToken() => tokenStorage.getToken();
   Future<void> saveToken(String token) => tokenStorage.saveToken(token);
+  Future<void> deleteToken() => tokenStorage.deleteToken();
   Future<void> clearToken() => tokenStorage.clearToken();
 
   Future<Map<String, String>> _headers({bool requiresAuth = true}) async {

@@ -1,12 +1,20 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../models/material_listing.dart';
 import '../repositories/material_repository.dart';
 
 class MarketplaceViewModel extends ChangeNotifier {
   final MaterialRepository materialRepository;
+  Timer? _searchDebounce;
 
   MarketplaceViewModel({required this.materialRepository}) {
     loadListings();
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    super.dispose();
   }
 
   final List<String> categories = const [
@@ -18,8 +26,28 @@ class MarketplaceViewModel extends ChangeNotifier {
     'Lainnya',
   ];
 
+  final List<String> conditions = const [
+    'Semua',
+    'clean',
+    'slightly_dirty',
+    'dirty',
+    'mixed',
+  ];
+
   String _selectedCategory = 'Semua';
   String get selectedCategory => _selectedCategory;
+
+  String _selectedCondition = 'Semua';
+  String get selectedCondition => _selectedCondition;
+
+  double? _minWeight;
+  double? get minWeight => _minWeight;
+
+  double? _maxWeight;
+  double? get maxWeight => _maxWeight;
+
+  String? _locationFilter;
+  String? get locationFilter => _locationFilter;
 
   String _searchQuery = '';
   String get searchQuery => _searchQuery;
@@ -33,6 +61,22 @@ class MarketplaceViewModel extends ChangeNotifier {
   List<MaterialListing> _listings = [];
   List<MaterialListing> get listings => _listings;
 
+  bool get hasActiveAdvancedFilters =>
+      _selectedCondition != 'Semua' ||
+      _minWeight != null ||
+      _maxWeight != null ||
+      (_locationFilter != null && _locationFilter!.trim().isNotEmpty);
+
+  int get activeFilterCount {
+    int count = 0;
+    if (_selectedCategory != 'Semua') count++;
+    if (_selectedCondition != 'Semua') count++;
+    if (_minWeight != null && _minWeight! > 0) count++;
+    if (_maxWeight != null && _maxWeight! > 0) count++;
+    if (_locationFilter != null && _locationFilter!.trim().isNotEmpty) count++;
+    return count;
+  }
+
   Future<void> loadListings() async {
     _isLoading = true;
     _errorMessage = null;
@@ -41,9 +85,15 @@ class MarketplaceViewModel extends ChangeNotifier {
     try {
       // BUG-09: Petakan label UI 'Lainnya' ke 'OTHER' saat memfilter API
       final categoryQuery = _selectedCategory == 'Lainnya' ? 'OTHER' : _selectedCategory;
+      final conditionQuery = _selectedCondition == 'Semua' ? null : _selectedCondition;
+
       final items = await materialRepository.getMaterials(
         category: categoryQuery,
         query: _searchQuery,
+        condition: conditionQuery,
+        minWeight: _minWeight,
+        maxWeight: _maxWeight,
+        location: _locationFilter,
       );
       _listings = items;
     } catch (e) {
@@ -62,9 +112,47 @@ class MarketplaceViewModel extends ChangeNotifier {
     }
   }
 
-  void updateSearchQuery(String query) {
+  void updateSearchQuery(String query, {bool immediate = false}) {
     _searchQuery = query;
+    _searchDebounce?.cancel();
+
+    if (immediate || query.trim().isEmpty) {
+      loadListings();
+    } else {
+      _searchDebounce = Timer(const Duration(milliseconds: 400), () {
+        loadListings();
+      });
+    }
+  }
+
+  void applyAdvancedFilters({
+    String? category,
+    String? condition,
+    double? minWeight,
+    double? maxWeight,
+    String? location,
+  }) {
+    if (category != null) _selectedCategory = category;
+    if (condition != null) _selectedCondition = condition;
+    _minWeight = minWeight;
+    _maxWeight = maxWeight;
+    _locationFilter = location;
     loadListings();
+  }
+
+  void resetFilters() {
+    _selectedCategory = 'Semua';
+    _selectedCondition = 'Semua';
+    _minWeight = null;
+    _maxWeight = null;
+    _locationFilter = null;
+    _searchQuery = '';
+    _searchDebounce?.cancel();
+    loadListings();
+  }
+
+  Future<MaterialListing> getMaterialDetail(int id) async {
+    return await materialRepository.getMaterialDetail(id);
   }
 
   Future<void> toggleFavorite(int id) async {
