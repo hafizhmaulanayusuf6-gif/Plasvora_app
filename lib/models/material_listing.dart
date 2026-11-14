@@ -2,24 +2,26 @@
 class MaterialListing {
   final int id;
   final int ownerId;
+  final String? ownerName;
   final String name;
-  final String category; // PET, HDPE, PP, LDPE, PVC, PS, Lainnya
+  final String category; // PET, HDPE, PP, LDPE, PVC, PS, OTHER, MIXED, Lainnya
   final double weightKg;
-  final String condition; // clean, light, dirty
+  final String condition; // clean, slightly_dirty, light, dirty, mixed
   final int price;
   final bool isFree;
   final String generalLocation;
-  final double distanceKm;
+  final double? distanceKm;
   final String description;
   final String? imageUrl;
   final String? localAsset;
-  final String status; // available, requested, handed_over
+  final String status; // available, reserved, completed, inactive
   final bool isFavorited;
   final DateTime createdAt;
 
   const MaterialListing({
     required this.id,
     this.ownerId = 1,
+    this.ownerName,
     required this.name,
     required this.category,
     required this.weightKg,
@@ -27,7 +29,7 @@ class MaterialListing {
     required this.price,
     required this.isFree,
     required this.generalLocation,
-    this.distanceKm = 1.0,
+    this.distanceKm,
     required this.description,
     this.imageUrl,
     this.localAsset,
@@ -40,13 +42,26 @@ class MaterialListing {
     switch (condition.toLowerCase()) {
       case 'clean':
         return 'Bersih & Kering';
+      case 'slightly_dirty':
       case 'light':
         return 'Sedikit Kotor';
       case 'dirty':
         return 'Belum Dicuci';
+      case 'mixed':
+        return 'Campuran';
       default:
         return condition;
     }
+  }
+
+  String get categoryLabel {
+    if (category.toUpperCase() == 'OTHER') {
+      return 'Lainnya';
+    }
+    if (category.toUpperCase() == 'MIXED') {
+      return 'Campuran';
+    }
+    return category;
   }
 
   String get formattedPrice {
@@ -68,6 +83,7 @@ class MaterialListing {
   MaterialListing copyWith({
     int? id,
     int? ownerId,
+    String? ownerName,
     String? name,
     String? category,
     double? weightKg,
@@ -86,6 +102,7 @@ class MaterialListing {
     return MaterialListing(
       id: id ?? this.id,
       ownerId: ownerId ?? this.ownerId,
+      ownerName: ownerName ?? this.ownerName,
       name: name ?? this.name,
       category: category ?? this.category,
       weightKg: weightKg ?? this.weightKg,
@@ -107,6 +124,7 @@ class MaterialListing {
     return MaterialListing(
       id: json['id'] is int ? json['id'] as int : (int.tryParse(json['id']?.toString() ?? '0') ?? 0),
       ownerId: json['owner_id'] is int ? json['owner_id'] as int : (int.tryParse(json['owner_id']?.toString() ?? '1') ?? 1),
+      ownerName: json['owner'] is Map<String, dynamic> ? json['owner']['name'] as String? : json['owner_name'] as String?,
       name: json['name'] as String? ?? '',
       category: json['category'] as String? ?? 'OTHER',
       weightKg: json['weight_kg'] is num
@@ -122,7 +140,7 @@ class MaterialListing {
       generalLocation: json['general_location'] as String? ?? '',
       distanceKm: json['distance_km'] is num
           ? (json['distance_km'] as num).toDouble()
-          : (double.tryParse(json['distance_km']?.toString() ?? '2.5') ?? 2.5),
+          : (json['distance_km'] != null ? double.tryParse(json['distance_km'].toString()) : null),
       description: json['description'] as String? ?? '',
       imageUrl: json['image_url'] as String?,
       localAsset: json['local_asset'] as String?,
@@ -138,6 +156,7 @@ class MaterialListing {
     return {
       'id': id,
       'owner_id': ownerId,
+      'owner_name': ownerName,
       'name': name,
       'category': category,
       'weight_kg': weightKg,

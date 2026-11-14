@@ -7,17 +7,20 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/widgets/plasvora_header.dart';
 import '../../viewmodels/analysis_viewmodel.dart';
+import '../../viewmodels/marketplace_viewmodel.dart';
 import '../../viewmodels/navigation_viewmodel.dart';
 import 'analysis_result_screen.dart';
 
 class AnalysisScreen extends StatefulWidget {
   final AnalysisViewModel viewModel;
   final NavigationViewModel navigationViewModel;
+  final MarketplaceViewModel? marketplaceViewModel;
 
   const AnalysisScreen({
     super.key,
     required this.viewModel,
     required this.navigationViewModel,
+    this.marketplaceViewModel,
   });
 
   @override
@@ -725,6 +728,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                           builder: (context) => AnalysisResultScreen(
                             result: result,
                             navigationViewModel: widget.navigationViewModel,
+                            marketplaceViewModel: widget.marketplaceViewModel,
                           ),
                         ),
                       );

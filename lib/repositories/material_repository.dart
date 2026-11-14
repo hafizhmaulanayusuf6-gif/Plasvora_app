@@ -5,7 +5,14 @@ import '../models/impact_summary.dart';
 import '../models/material_listing.dart';
 
 abstract class MaterialRepository {
-  Future<List<MaterialListing>> getMaterials({String? category, String? query});
+  Future<List<MaterialListing>> getMaterials({
+    String? category,
+    String? query,
+    String? condition,
+    double? minWeight,
+    double? maxWeight,
+    String? location,
+  });
   Future<MaterialListing> getMaterialDetail(int id);
   Future<MaterialListing> createMaterial({
     required String name,
@@ -31,13 +38,30 @@ class ApiMaterialRepository implements MaterialRepository {
   Future<List<MaterialListing>> getMaterials({
     String? category,
     String? query,
+    String? condition,
+    double? minWeight,
+    double? maxWeight,
+    String? location,
   }) async {
     final params = <String>[];
     if (category != null && category.isNotEmpty && category != 'Semua') {
-      params.add('category=${Uri.encodeQueryComponent(category)}');
+      final catParam = category == 'Lainnya' ? 'OTHER' : category;
+      params.add('category=${Uri.encodeQueryComponent(catParam)}');
     }
     if (query != null && query.trim().isNotEmpty) {
       params.add('q=${Uri.encodeQueryComponent(query.trim())}');
+    }
+    if (condition != null && condition.isNotEmpty && condition != 'Semua') {
+      params.add('condition=${Uri.encodeQueryComponent(condition)}');
+    }
+    if (minWeight != null && minWeight > 0) {
+      params.add('min_weight=$minWeight');
+    }
+    if (maxWeight != null && maxWeight > 0) {
+      params.add('max_weight=$maxWeight');
+    }
+    if (location != null && location.trim().isNotEmpty) {
+      params.add('location=${Uri.encodeQueryComponent(location.trim())}');
     }
 
     final queryString = params.isNotEmpty ? '?${params.join('&')}' : '';
@@ -220,6 +244,10 @@ class MockMaterialRepository implements MaterialRepository {
   Future<List<MaterialListing>> getMaterials({
     String? category,
     String? query,
+    String? condition,
+    double? minWeight,
+    double? maxWeight,
+    String? location,
   }) async {
     if (simulateDelay) {
       // Simulate slight network delay for smooth UX
@@ -230,7 +258,8 @@ class MockMaterialRepository implements MaterialRepository {
       final matchesCategory =
           category == null ||
           category == 'Semua' ||
-          item.category.toLowerCase() == category.toLowerCase();
+          item.category.toLowerCase() == category.toLowerCase() ||
+          (category == 'OTHER' && item.category.toLowerCase() == 'lainnya');
 
       final matchesQuery =
           query == null ||
@@ -239,7 +268,28 @@ class MockMaterialRepository implements MaterialRepository {
           item.generalLocation.toLowerCase().contains(query.toLowerCase()) ||
           item.category.toLowerCase().contains(query.toLowerCase());
 
-      return matchesCategory && matchesQuery;
+      final matchesCondition =
+          condition == null ||
+          condition == 'Semua' ||
+          item.condition.toLowerCase() == condition.toLowerCase();
+
+      final matchesMinWeight =
+          minWeight == null || item.weightKg >= minWeight;
+
+      final matchesMaxWeight =
+          maxWeight == null || item.weightKg <= maxWeight;
+
+      final matchesLocation =
+          location == null ||
+          location.trim().isEmpty ||
+          item.generalLocation.toLowerCase().contains(location.toLowerCase());
+
+      return matchesCategory &&
+          matchesQuery &&
+          matchesCondition &&
+          matchesMinWeight &&
+          matchesMaxWeight &&
+          matchesLocation;
     }).toList();
   }
 

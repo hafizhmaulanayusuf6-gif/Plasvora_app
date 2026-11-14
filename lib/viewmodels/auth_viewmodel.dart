@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
+import '../core/network/api_client.dart';
 import '../models/user_profile.dart';
 import '../repositories/auth_repository.dart';
 
-enum AuthState { initial, loading, authenticated, unauthenticated, error }
+enum AuthState { initial, loading, authenticated, unauthenticated, error, connectionError }
 
 class AuthViewModel extends ChangeNotifier {
   final AuthRepository authRepository;
@@ -18,14 +20,29 @@ class AuthViewModel extends ChangeNotifier {
 
   bool get isAuthenticated => _state == AuthState.authenticated;
   bool get isLoading => _state == AuthState.loading;
+  bool get hasConnectionError => _state == AuthState.connectionError;
+
+  bool _isRestoring = false;
+  Future<void>? _activeRestoreFuture;
 
   AuthViewModel({required this.authRepository}) {
     checkAuthSession();
   }
 
+  /// Memulihkan dan memvalidasi sesi autentikasi dengan proteksi race condition.
+  /// Menjamin restore session hanya berjalan sekali secara simultan.
   Future<void> checkAuthSession() async {
+    if (_isRestoring && _activeRestoreFuture != null) {
+      return _activeRestoreFuture;
+    }
+
+    _isRestoring = true;
     _state = AuthState.loading;
+    _errorMessage = null;
     notifyListeners();
+
+    final completer = Completer<void>();
+    _activeRestoreFuture = completer.future;
 
     try {
       final user = await authRepository.getCurrentUser();
@@ -36,13 +53,36 @@ class AuthViewModel extends ChangeNotifier {
         _currentUser = null;
         _state = AuthState.unauthenticated;
       }
-    } catch (_) {
-      _currentUser = null;
-      _state = AuthState.unauthenticated;
+    } on ApiException catch (e) {
+      if (e.statusCode == 401) {
+        // HTTP 401 Unauthorized: Sesi tidak sah / token dicabut
+        _currentUser = null;
+        _state = AuthState.unauthenticated;
+      } else if (e.statusCode == 403) {
+        // HTTP 403 Forbidden: Hak akses ditolak, tetapi token TETAP DIPERTAHANKAN
+        // Jangan logout otomatis.
+        _errorMessage = e.message.isNotEmpty
+            ? e.message
+            : 'Akses ke akun Anda dibatasi oleh server (403 Forbidden).';
+        _state = AuthState.error;
+      } else {
+        // HTTP 500, 503, dll: Error server, token tetap aman
+        _errorMessage = e.message;
+        _state = AuthState.connectionError;
+      }
+    } catch (e) {
+      // Socket exception, network timeout: token tetap aman
+      _errorMessage = e.toString().replaceFirst('ApiException: ', '');
+      _state = AuthState.connectionError;
     } finally {
+      _isRestoring = false;
+      _activeRestoreFuture = null;
+      completer.complete();
       notifyListeners();
     }
   }
+
+  Future<void> retryCheckAuthSession() => checkAuthSession();
 
   Future<bool> login(String email, String password) async {
     _state = AuthState.loading;
@@ -96,10 +136,13 @@ class AuthViewModel extends ChangeNotifier {
     _state = AuthState.loading;
     notifyListeners();
 
-    await authRepository.logout();
-    _currentUser = null;
-    _state = AuthState.unauthenticated;
-    notifyListeners();
+    try {
+      await authRepository.logout();
+    } finally {
+      _currentUser = null;
+      _state = AuthState.unauthenticated;
+      notifyListeners();
+    }
   }
 }
 

@@ -59,22 +59,31 @@ class ApiAnalysisRepository implements AnalysisRepository {
 
     if (response is Map<String, dynamic> && response['data'] != null) {
       final data = response['data'] as Map<String, dynamic>;
-      return _mapBackendDataToResult(data, input);
+      return mapBackendDataToResult(
+        data,
+        localImagePath: input.imagePath,
+        fallbackCategory: input.polymerCategory,
+      );
     }
 
     throw ApiException('Format respons analisis tidak valid dari server.');
   }
 
-  PlasticAnalysisResult _mapBackendDataToResult(
-    Map<String, dynamic> data,
-    PlasticAnalysisInput input,
-  ) {
+  static PlasticAnalysisResult mapBackendDataToResult(
+    Map<String, dynamic> data, {
+    String? localImagePath,
+    String? fallbackCategory,
+  }) {
     final isDemo = data['is_demo_result'] == true;
     final id = data['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString();
     final estimatedCat = data['estimated_category']?.toString() ??
         data['declared_category']?.toString() ??
-        input.polymerCategory ??
+        fallbackCategory ??
         'PET';
+
+    final resolvedImagePath = (localImagePath != null && localImagePath.isNotEmpty)
+        ? localImagePath
+        : (data['image_url']?.toString() ?? data['input_image_path']?.toString());
 
     final recs = data['recommendations'];
 
@@ -182,7 +191,7 @@ class ApiAnalysisRepository implements AnalysisRepository {
 
       return PlasticAnalysisResult(
         id: id,
-        imagePath: input.imagePath,
+        imagePath: resolvedImagePath,
         localAsset: AppAssets.hasilAnalisisCaps,
         objectName: objectName,
         objectDescription: objectDesc,
@@ -225,19 +234,19 @@ class ApiAnalysisRepository implements AnalysisRepository {
     return _mapCategoryToDefaultResult(
       id: id,
       category: estimatedCat,
-      input: input,
+      imagePath: resolvedImagePath,
       isDemo: isDemo,
       ideas: ideas,
     );
   }
 
-  String _resolveIdeaAsset(int index) {
+  static String _resolveIdeaAsset(int index) {
     if (index % 3 == 0) return AppAssets.ideaStool;
     if (index % 3 == 1) return AppAssets.ideaAccessories;
     return AppAssets.ideaMosaic;
   }
 
-  List<UpcyclingIdea> _defaultIdeas() {
+  static List<UpcyclingIdea> _defaultIdeas() {
     return const [
       UpcyclingIdea(
         id: 'idea_1',
@@ -256,10 +265,10 @@ class ApiAnalysisRepository implements AnalysisRepository {
     ];
   }
 
-  PlasticAnalysisResult _mapCategoryToDefaultResult({
+  static PlasticAnalysisResult _mapCategoryToDefaultResult({
     required String id,
     required String category,
-    required PlasticAnalysisInput input,
+    String? imagePath,
     required bool isDemo,
     required List<UpcyclingIdea> ideas,
   }) {
@@ -303,7 +312,7 @@ class ApiAnalysisRepository implements AnalysisRepository {
 
     return PlasticAnalysisResult(
       id: id,
-      imagePath: input.imagePath,
+      imagePath: imagePath,
       localAsset: AppAssets.hasilAnalisisCaps,
       materialTitle: title,
       polymerCategory: category,

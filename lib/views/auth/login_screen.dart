@@ -109,10 +109,9 @@ class _LoginScreenState extends State<LoginScreen> {
     return Column(
       children: [
         Container(
-          width: 56,
-          height: 56,
+          width: 60,
+          height: 60,
           decoration: BoxDecoration(
-            color: AppColors.primaryContainer,
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
@@ -122,16 +121,19 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ],
           ),
-          child: Center(
+          child: ClipOval(
             child: Image.asset(
               AppAssets.logo,
-              width: 32,
-              height: 32,
+              width: 60,
+              height: 60,
               fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) => const Icon(
-                Icons.eco,
-                color: Color(0xFFBEEDD9),
-                size: 28,
+              errorBuilder: (context, error, stackTrace) => Container(
+                color: AppColors.primaryContainer,
+                child: const Icon(
+                  Icons.eco,
+                  color: Color(0xFFBEEDD9),
+                  size: 28,
+                ),
               ),
             ),
           ),

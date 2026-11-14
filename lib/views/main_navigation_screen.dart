@@ -6,6 +6,8 @@ import '../viewmodels/analysis_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../viewmodels/home_viewmodel.dart';
 import '../viewmodels/marketplace_viewmodel.dart';
+import '../viewmodels/matching_viewmodel.dart';
+import '../viewmodels/material_request_viewmodel.dart';
 import '../viewmodels/navigation_viewmodel.dart';
 import 'activity/activity_screen.dart';
 import 'analysis/analysis_screen.dart';
@@ -19,6 +21,8 @@ class MainNavigationScreen extends StatelessWidget {
   final MarketplaceViewModel marketplaceViewModel;
   final AuthViewModel? authViewModel;
   final ActivityViewModel? activityViewModel;
+  final MaterialRequestViewModel? materialRequestViewModel;
+  final MatchingViewModel? matchingViewModel;
 
   const MainNavigationScreen({
     super.key,
@@ -28,6 +32,8 @@ class MainNavigationScreen extends StatelessWidget {
     required this.marketplaceViewModel,
     this.authViewModel,
     this.activityViewModel,
+    this.materialRequestViewModel,
+    this.matchingViewModel,
   });
 
   @override
@@ -49,12 +55,19 @@ class MainNavigationScreen extends StatelessWidget {
               AnalysisScreen(
                 viewModel: analysisViewModel,
                 navigationViewModel: navigationViewModel,
+                marketplaceViewModel: marketplaceViewModel,
               ),
               MarketplaceScreen(
                 viewModel: marketplaceViewModel,
                 navigationViewModel: navigationViewModel,
+                materialRequestViewModel: materialRequestViewModel,
+                matchingViewModel: matchingViewModel,
               ),
-              ActivityScreen(viewModel: activityViewModel),
+              ActivityScreen(
+                viewModel: activityViewModel,
+                marketplaceViewModel: marketplaceViewModel,
+                navigationViewModel: navigationViewModel,
+              ),
             ],
           ),
           bottomNavigationBar: AppBottomNav(

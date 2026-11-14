@@ -84,11 +84,23 @@ class ApiAuthRepository implements AuthRepository {
       if (response is Map<String, dynamic> && response['data'] != null) {
         return UserProfile.fromJson(response['data'] as Map<String, dynamic>);
       }
-    } catch (_) {
-      await apiClient.clearToken();
       return null;
+    } on ApiException catch (e) {
+      // HTTP 401 Unauthorized: Sesi tidak valid / token telah dicabut backend.
+      // Hapus token dari secure storage & ApiClient, lalu kembalikan null agar diarahkan ke Login.
+      if (e.statusCode == 401) {
+        await apiClient.deleteToken();
+        return null;
+      }
+      // HTTP 403 Forbidden: Hak akses ditolak oleh server, TETAPI identitas/token masih valid.
+      // JANGAN hapus token lokal dan JANGAN logout otomatis.
+      // Lempar ApiException agar ViewModel melaporkan status akses ditolak.
+      // HTTP 500, 503, dll: Error server, token lokal TETAP DIPERTAHANKAN.
+      rethrow;
+    } catch (_) {
+      // Untuk kendala jaringan, socket exception, timeout: jangan hapus token lokal
+      rethrow;
     }
-    return null;
   }
 
   @override
@@ -98,7 +110,7 @@ class ApiAuthRepository implements AuthRepository {
     } catch (_) {
       // Abaikan jika token di server sudah invalid
     } finally {
-      await apiClient.clearToken();
+      await apiClient.deleteToken();
     }
   }
 
