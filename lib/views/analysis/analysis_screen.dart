@@ -217,25 +217,14 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         const Divider(color: Color(0x1F707974), height: 1),
         const SizedBox(height: 12),
         // Guidelines strip
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 6,
           children: [
             _buildGuidelineItem(Icons.wb_sunny, 'Cahaya Alami'),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 8),
-              child: Text(
-                '•',
-                style: TextStyle(color: AppColors.outlineVariant),
-              ),
-            ),
             _buildGuidelineItem(Icons.center_focus_strong, 'Fokus Polimer'),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 8),
-              child: Text(
-                '•',
-                style: TextStyle(color: AppColors.outlineVariant),
-              ),
-            ),
             _buildGuidelineItem(Icons.clean_hands, 'Bebas Kotoran'),
           ],
         ),
@@ -356,10 +345,13 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Data Pendukung Opsional',
-              style: AppTypography.headlineSm(color: AppColors.onSurface),
+            Expanded(
+              child: Text(
+                'Data Pendukung Opsional',
+                style: AppTypography.headlineSm(color: AppColors.onSurface),
+              ),
             ),
+            const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
               decoration: BoxDecoration(
@@ -488,12 +480,18 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         const SizedBox(height: 8),
         Row(
           children: [
-            _buildWeightShortcut('+1 kg', 1.0),
+            Expanded(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  _buildWeightShortcut('+1 kg', 1.0),
+                  _buildWeightShortcut('+5 kg', 5.0),
+                  _buildWeightShortcut('+10 kg', 10.0),
+                ],
+              ),
+            ),
             const SizedBox(width: 8),
-            _buildWeightShortcut('+5 kg', 5.0),
-            const SizedBox(width: 8),
-            _buildWeightShortcut('+10 kg', 10.0),
-            const Spacer(),
             Text(
               'Pilih pintasan',
               style: AppTypography.bodySm(color: AppColors.onSurfaceVariant),

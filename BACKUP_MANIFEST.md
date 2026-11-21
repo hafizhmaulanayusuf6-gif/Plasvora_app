@@ -958,3 +958,36 @@ backup_directory_provider_null_safety/
 ```powershell
 Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\ad4f1028-05be-433f-9c28-ee55610e9d07\backup_directory_provider_null_safety\lib\core\network\api_client.dart" "C:\Project\Plasvora_app\lib\core\network\api_client.dart" -Force
 ```
+
+
+---
+
+## 26. Backup Perbaikan Horizontal Text Overflow & Responsive Layout Halaman Hasil Analisis
+
+**Tanggal**: 20 November 2026
+
+**Tujuan**:
+1. Memperbaiki masalah horizontal text overflow pada Card Komponen Material di `lib/views/analysis/analysis_result_screen.dart` (termasuk baris badge `Dugaan Visual` + deskripsi resin panjang, baris `Material Dugaan`, dan baris `Titik leleh komponen` dalam kotak info material).
+2. Memastikan header card komponen (ikon, judul komponen, tombol `Cara Cek`) responsif terhadap layar sempit (320px–412px) maupun pembesaran ukuran font sistem.
+3. Mengaudit dan memperbaiki potensi text overflow pada seluruh bagian lain di halaman Hasil Analisis: badge preview foto, banner status AI Vision, header bagian `Komponen Material` & `Rekomendasi Upcycling`, kartu metrik `Karakter Titik Leleh` & `Emisi Terhindar`, kartu & detail modal `Rekomendasi Upcycling`, modal `Verifikasi Fisik`, serta tombol aksi dan indikator status bawah (menghapus fixed height dan menambahkan constraint wrapping).
+4. Mempertahankan penuh desain visual Plasvora, data analisis AI, model, ViewModel, repository, dan alur navigasi tanpa perubahan logika bisnis.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\9f4d9fd8-c98a-4cfd-b6f4-014e9debce8b\backup_analysis_result_overflow_fix\`
+
+Struktur Folder Backup:
+```
+backup_analysis_result_overflow_fix/
+└── lib/
+    └── views/
+        └── analysis/
+            └── analysis_result_screen.dart
+```
+
+### File yang Di-backup Sebelum Diubah:
+1. `lib/views/analysis/analysis_result_screen.dart` (52.896 bytes, SHA256: `189D1B7B8BB7BC36C03C6C63E7C6DA920AA6117C01103B700F2C17E025690FFC`)
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\9f4d9fd8-c98a-4cfd-b6f4-014e9debce8b\backup_analysis_result_overflow_fix\lib\views\analysis\analysis_result_screen.dart" "C:\Project\Plasvora_app\lib\views\analysis\analysis_result_screen.dart" -Force
+```
