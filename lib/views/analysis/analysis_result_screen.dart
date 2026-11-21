@@ -93,67 +93,82 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
                 Image.asset(result.localAsset, fit: BoxFit.cover),
               Positioned(
                 top: 12,
+                left: 12,
                 right: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceContainerLowest.withValues(
-                      alpha: 0.92,
+                child: Align(
+                  alignment: Alignment.topRight,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
                     ),
-                    borderRadius: BorderRadius.circular(999),
-                    boxShadow: const [
-                      BoxShadow(color: Color(0x0A000000), blurRadius: 4),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.photo_camera,
-                        size: 15,
-                        color: AppColors.primary,
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceContainerLowest.withValues(
+                        alpha: 0.92,
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Foto Analisis',
-                        style: AppTypography.labelSm(color: AppColors.onSurface)
-                            .copyWith(fontWeight: FontWeight.w600),
-                      ),
-                    ],
+                      borderRadius: BorderRadius.circular(999),
+                      boxShadow: const [
+                        BoxShadow(color: Color(0x0A000000), blurRadius: 4),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.photo_camera,
+                          size: 15,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            'Foto Analisis',
+                            softWrap: true,
+                            style: AppTypography.labelSm(
+                              color: AppColors.onSurface,
+                            ).copyWith(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
               Positioned(
                 bottom: 12,
                 left: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.inverseSurface.withValues(alpha: 0.85),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.auto_awesome,
-                        size: 14,
-                        color: AppColors.primaryFixed,
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        'AI Vision v2.4',
-                        style: AppTypography.labelSm(
-                          color: AppColors.surfaceBright,
-                        ).copyWith(fontWeight: FontWeight.w600),
-                      ),
-                    ],
+                right: 12,
+                child: Align(
+                  alignment: Alignment.bottomLeft,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.inverseSurface.withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.auto_awesome,
+                          size: 14,
+                          color: AppColors.primaryFixed,
+                        ),
+                        const SizedBox(width: 5),
+                        Flexible(
+                          child: Text(
+                            'AI Vision v2.4',
+                            softWrap: true,
+                            style: AppTypography.labelSm(
+                              color: AppColors.surfaceBright,
+                            ).copyWith(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -210,24 +225,31 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
               ),
             ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  result.isSimulated ? Icons.tune : Icons.auto_awesome,
-                  size: 15,
-                  color: result.isSimulated
-                      ? AppColors.onSurfaceVariant
-                      : AppColors.primary,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  result.isSimulated
-                      ? 'Mode Simulasi / Aturan Cepat'
-                      : 'Dianalisis oleh Gemini AI Vision (Multi-Komponen)',
-                  style: AppTypography.labelSm(
+                Padding(
+                  padding: const EdgeInsets.only(top: 1),
+                  child: Icon(
+                    result.isSimulated ? Icons.tune : Icons.auto_awesome,
+                    size: 15,
                     color: result.isSimulated
                         ? AppColors.onSurfaceVariant
                         : AppColors.primary,
-                  ).copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    result.isSimulated
+                        ? 'Mode Simulasi / Aturan Cepat'
+                        : 'Dianalisis oleh Gemini AI Vision (Multi-Komponen)',
+                    softWrap: true,
+                    style: AppTypography.labelSm(
+                      color: result.isSimulated
+                          ? AppColors.onSurfaceVariant
+                          : AppColors.primary,
+                    ).copyWith(fontWeight: FontWeight.w600),
+                  ),
                 ),
               ],
             ),
@@ -255,6 +277,7 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
                   children: [
                     Text(
                       'OBJEK TERDETEKSI',
+                      softWrap: true,
                       style: AppTypography.labelSm(
                         color: AppColors.onSurfaceVariant,
                       ).copyWith(
@@ -266,6 +289,7 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
                     const SizedBox(height: 2),
                     Text(
                       objectName,
+                      softWrap: true,
                       style: AppTypography.headlineMd(
                         color: AppColors.onSurface,
                       ),
@@ -274,6 +298,7 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
                       const SizedBox(height: 3),
                       Text(
                         objectDesc,
+                        softWrap: true,
                         style: AppTypography.bodySm(
                           color: AppColors.onSurfaceVariant,
                         ).copyWith(fontSize: 12),
@@ -287,6 +312,7 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
           if (hasDiscrepancy) ...[
             const SizedBox(height: 12),
             Container(
+              width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: const Color(0xFFFFFBEB),
@@ -310,6 +336,7 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
                       children: [
                         Text(
                           'Perhatian: Catatan & Foto Perlu Verifikasi',
+                          softWrap: true,
                           style: AppTypography.labelSm(
                             color: const Color(0xFF92400E),
                           ).copyWith(fontWeight: FontWeight.w700),
@@ -317,6 +344,7 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
                         const SizedBox(height: 2),
                         Text(
                           summary,
+                          softWrap: true,
                           style: AppTypography.bodySm(
                             color: const Color(0xFF78350F),
                           ).copyWith(fontSize: 11.5, height: 1.35),
@@ -330,6 +358,7 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
           ] else if (summary.isNotEmpty) ...[
             const SizedBox(height: 12),
             Container(
+              width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: AppColors.surfaceContainerLow,
@@ -347,6 +376,7 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
                   Expanded(
                     child: Text(
                       summary,
+                      softWrap: true,
                       style: AppTypography.bodySm(
                         color: AppColors.onSurfaceVariant,
                       ).copyWith(fontSize: 11.5, height: 1.35),
@@ -372,22 +402,34 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Row(
-              children: [
-                const Icon(
-                  Icons.layers_outlined,
-                  size: 19,
-                  color: AppColors.primary,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'Komponen Material',
-                  style: AppTypography.headlineSm(color: AppColors.onSurface),
-                ),
-              ],
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 2),
+                    child: Icon(
+                      Icons.layers_outlined,
+                      size: 19,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Komponen Material',
+                      softWrap: true,
+                      style: AppTypography.headlineSm(
+                        color: AppColors.onSurface,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
+            const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
@@ -406,6 +448,7 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
         const SizedBox(height: 4),
         Text(
           'Setiap bagian fisik objek dipisahkan untuk menjaga kemurnian dan keamanan daur ulang:',
+          softWrap: true,
           style: AppTypography.bodySm(color: AppColors.onSurfaceVariant)
               .copyWith(fontSize: 11.5),
         ),
@@ -451,7 +494,11 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
     if (isBody) partIcon = Icons.local_drink;
     if (isLabel) partIcon = Icons.bookmark_border;
 
+    final hasResinCode =
+        comp.resinCode != null && comp.resinCode!.trim().isNotEmpty;
+
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.surfaceContainerLowest,
@@ -473,81 +520,123 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: AppColors.secondaryContainer.withValues(alpha: 0.6),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(partIcon, size: 20, color: AppColors.primary),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      comp.partName,
-                      style: AppTypography.labelLg(color: AppColors.onSurface)
-                          .copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 1.5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: confidenceBg,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            confidenceLabel,
-                            style: AppTypography.labelSm(color: confidenceText)
-                                .copyWith(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 9.5,
-                            ),
-                          ),
-                        ),
-                        if (comp.resinCode != null &&
-                            comp.resinCode!.isNotEmpty) ...[
-                          const SizedBox(width: 6),
-                          Text(
-                            'Resin ${comp.resinCode}',
-                            style: AppTypography.bodySm(
-                              color: AppColors.onSurfaceVariant,
-                            ).copyWith(fontSize: 11, fontWeight: FontWeight.w600),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              TextButton.icon(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+              final stackAction =
+                  constraints.maxWidth < 230 || textScale > 1.35;
+
+              final checkButton = TextButton.icon(
                 onPressed: () => _showComponentVerificationDialog(comp),
-                icon: const Icon(Icons.help_outline, size: 14, color: AppColors.primary),
+                icon: const Icon(
+                  Icons.help_outline,
+                  size: 14,
+                  color: AppColors.primary,
+                ),
                 label: Text(
                   'Cara Cek',
                   style: AppTypography.labelSm(color: AppColors.primary),
                 ),
                 style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
+              );
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: AppColors.secondaryContainer.withValues(
+                            alpha: 0.6,
+                          ),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          partIcon,
+                          size: 20,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          comp.partName,
+                          softWrap: true,
+                          style: AppTypography.labelLg(
+                            color: AppColors.onSurface,
+                          ).copyWith(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      if (!stackAction) ...[
+                        const SizedBox(width: 6),
+                        checkButton,
+                      ],
+                    ],
+                  ),
+                  if (stackAction) ...[
+                    const SizedBox(height: 6),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: checkButton,
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: confidenceBg,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  confidenceLabel,
+                  softWrap: true,
+                  style: AppTypography.labelSm(color: confidenceText).copyWith(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 9.5,
+                  ),
+                ),
               ),
+              if (hasResinCode)
+                Text(
+                  'Resin ${comp.resinCode}',
+                  softWrap: true,
+                  style: AppTypography.bodySm(
+                    color: AppColors.onSurfaceVariant,
+                  ).copyWith(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 10),
           // Baris Polimer & Kandidat
           Container(
+            width: double.infinity,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: AppColors.surfaceContainerLow,
@@ -556,24 +645,31 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Text(
-                      'Material Dugaan: ',
-                      style: AppTypography.labelSm(color: AppColors.onSurfaceVariant)
-                          .copyWith(fontSize: 11),
-                    ),
-                    Text(
-                      comp.isUncertain
-                          ? 'Perlu Dipastikan (Belum Pasti)'
-                          : '${comp.materialType} ${comp.resinCode != null ? "(${comp.resinCode})" : ""}',
-                      style: AppTypography.labelSm(
-                        color: comp.isUncertain
-                            ? const Color(0xFFD97706)
-                            : AppColors.primary,
-                      ).copyWith(fontWeight: FontWeight.w700, fontSize: 11.5),
-                    ),
-                  ],
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: 'Material Dugaan: ',
+                        style: AppTypography.labelSm(
+                          color: AppColors.onSurfaceVariant,
+                        ).copyWith(fontSize: 11),
+                      ),
+                      TextSpan(
+                        text: comp.isUncertain
+                            ? 'Perlu Dipastikan (Belum Pasti)'
+                            : '${comp.materialType}${hasResinCode ? " (${comp.resinCode})" : ""}',
+                        style: AppTypography.labelSm(
+                          color: comp.isUncertain
+                              ? const Color(0xFFD97706)
+                              : AppColors.primary,
+                        ).copyWith(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 11.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                  softWrap: true,
                 ),
                 if (comp.candidateMaterials.isNotEmpty) ...[
                   const SizedBox(height: 6),
@@ -596,30 +692,42 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
                             ),
                             child: Text(
                               'Kandidat: $candidate',
+                              softWrap: true,
                               style: AppTypography.labelSm(
                                 color: AppColors.onSurface,
-                              ).copyWith(fontSize: 10.5, fontWeight: FontWeight.w600),
+                              ).copyWith(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         )
                         .toList(),
                   ),
                 ],
-                if (comp.meltingPoint != null && comp.meltingPoint!.isNotEmpty) ...[
+                if (comp.meltingPoint != null &&
+                    comp.meltingPoint!.isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(
-                        Icons.thermostat_outlined,
-                        size: 14,
-                        color: AppColors.onSurfaceVariant,
+                      const Padding(
+                        padding: EdgeInsets.only(top: 1.5),
+                        child: Icon(
+                          Icons.thermostat_outlined,
+                          size: 14,
+                          color: AppColors.onSurfaceVariant,
+                        ),
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        'Titik leleh komponen: ${comp.meltingPoint}',
-                        style: AppTypography.bodySm(
-                          color: AppColors.onSurfaceVariant,
-                        ).copyWith(fontSize: 11),
+                      Expanded(
+                        child: Text(
+                          'Titik leleh komponen: ${comp.meltingPoint}',
+                          softWrap: true,
+                          style: AppTypography.bodySm(
+                            color: AppColors.onSurfaceVariant,
+                          ).copyWith(fontSize: 11),
+                        ),
                       ),
                     ],
                   ),
@@ -632,15 +740,19 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(
-                Icons.search,
-                size: 15,
-                color: AppColors.primary,
+              const Padding(
+                padding: EdgeInsets.only(top: 1),
+                child: Icon(
+                  Icons.search,
+                  size: 15,
+                  color: AppColors.primary,
+                ),
               ),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   comp.verificationNote,
+                  softWrap: true,
                   style: AppTypography.bodySm(color: AppColors.onSurfaceVariant)
                       .copyWith(fontSize: 11, fontStyle: FontStyle.italic),
                 ),
@@ -655,77 +767,98 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
   void _showComponentVerificationDialog(MaterialComponent comp) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Verifikasi Fisik: ${comp.partName}',
-                    style: AppTypography.headlineSm(color: AppColors.onSurface),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.secondaryContainer.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.tips_and_updates, color: AppColors.primary),
-                    const SizedBox(width: 10),
                     Expanded(
-                      child: Text(
-                        comp.verificationNote,
-                        style: AppTypography.bodySm(color: AppColors.onSurface)
-                            .copyWith(height: 1.4),
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          'Verifikasi Fisik: ${comp.partName}',
+                          softWrap: true,
+                          style: AppTypography.headlineSm(
+                            color: AppColors.onSurface,
+                          ),
+                        ),
                       ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Panduan Identifikasi Manual:',
-                style: AppTypography.labelLg(color: AppColors.onSurface),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '• Badan botol: Cari logo segitiga angka 1 (PET) yang tercetak timbul di dasar botol.\n'
-                '• Tutup botol: Balik tutup botol dan cari angka 2 (HDPE) atau 5 (PP) di lingkaran dalam.\n'
-                '• Pisahkan kedua komponen sebelum disetorkan ke bank sampah.',
-                style: AppTypography.bodySm(color: AppColors.onSurfaceVariant)
-                    .copyWith(height: 1.45),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondaryContainer.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text('Saya Mengerti'),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.tips_and_updates,
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          comp.verificationNote,
+                          softWrap: true,
+                          style: AppTypography.bodySm(
+                            color: AppColors.onSurface,
+                          ).copyWith(height: 1.4),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                Text(
+                  'Panduan Identifikasi Manual:',
+                  softWrap: true,
+                  style: AppTypography.labelLg(color: AppColors.onSurface),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '• Badan botol: Cari logo segitiga angka 1 (PET) yang tercetak timbul di dasar botol.\n'
+                  '• Tutup botol: Balik tutup botol dan cari angka 2 (HDPE) atau 5 (PP) di lingkaran dalam.\n'
+                  '• Pisahkan kedua komponen sebelum disetorkan ke bank sampah.',
+                  softWrap: true,
+                  style: AppTypography.bodySm(color: AppColors.onSurfaceVariant)
+                      .copyWith(height: 1.45),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Saya Mengerti'),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -736,112 +869,146 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
   Widget _buildPolymerMetrics() {
     final result = widget.result;
 
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceContainerLowest,
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x0620312A),
-                  blurRadius: 6,
-                  offset: Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.thermostat_outlined,
-                      size: 18,
-                      color: AppColors.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Karakter Titik Leleh',
-                      style: AppTypography.labelSm(
-                        color: AppColors.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  result.isMultiComponent
-                      ? 'Multi-Komponen'
-                      : result.meltingPoint,
-                  style: AppTypography.headlineSm(color: AppColors.onSurface)
-                      .copyWith(fontSize: 14),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  result.isMultiComponent
-                      ? 'Cek rincian pada setiap komponen'
-                      : 'Karakteristik termal polimer',
-                  style: AppTypography.bodySm(color: AppColors.onSurfaceVariant)
-                      .copyWith(fontSize: 10.5),
-                ),
-              ],
-            ),
+    final meltingCard = Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0620312A),
+            blurRadius: 6,
+            offset: Offset(0, 2),
           ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceContainerLowest,
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x0620312A),
-                  blurRadius: 6,
-                  offset: Offset(0, 2),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.thermostat_outlined,
+                size: 18,
+                color: AppColors.onSurfaceVariant,
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  'Karakter Titik Leleh',
+                  softWrap: true,
+                  style: AppTypography.labelSm(
+                    color: AppColors.onSurfaceVariant,
+                  ),
                 ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.eco_outlined,
-                      size: 18,
-                      color: AppColors.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Emisi Terhindar',
-                      style: AppTypography.labelSm(
-                        color: AppColors.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  result.avoidedEmission,
-                  style: AppTypography.headlineSm(color: AppColors.primary)
-                      .copyWith(fontSize: 14),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Estimasi potensi nilai sirkular',
-                  style: AppTypography.bodySm(color: AppColors.onSurfaceVariant)
-                      .copyWith(fontSize: 10.5),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ),
-      ],
+          const SizedBox(height: 4),
+          Text(
+            result.isMultiComponent
+                ? 'Multi-Komponen'
+                : result.meltingPoint,
+            softWrap: true,
+            style: AppTypography.headlineSm(color: AppColors.onSurface)
+                .copyWith(fontSize: 14),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            result.isMultiComponent
+                ? 'Cek rincian pada setiap komponen'
+                : 'Karakteristik termal polimer',
+            softWrap: true,
+            style: AppTypography.bodySm(color: AppColors.onSurfaceVariant)
+                .copyWith(fontSize: 10.5),
+          ),
+        ],
+      ),
+    );
+
+    final emissionCard = Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0620312A),
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.eco_outlined,
+                size: 18,
+                color: AppColors.onSurfaceVariant,
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  'Emisi Terhindar',
+                  softWrap: true,
+                  style: AppTypography.labelSm(
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            result.avoidedEmission,
+            softWrap: true,
+            style: AppTypography.headlineSm(color: AppColors.primary)
+                .copyWith(fontSize: 14),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Estimasi potensi nilai sirkular',
+            softWrap: true,
+            style: AppTypography.bodySm(color: AppColors.onSurfaceVariant)
+                .copyWith(fontSize: 10.5),
+          ),
+        ],
+      ),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+        final stackMetrics = constraints.maxWidth < 260 ||
+            (constraints.maxWidth < 340 && textScale > 1.3);
+
+        if (stackMetrics) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              meltingCard,
+              const SizedBox(height: 10),
+              emissionCard,
+            ],
+          );
+        }
+
+        return IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: meltingCard),
+              const SizedBox(width: 10),
+              Expanded(child: emissionCard),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -853,22 +1020,34 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Row(
-              children: [
-                const Icon(
-                  Icons.auto_awesome_motion,
-                  size: 20,
-                  color: AppColors.primary,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'Rekomendasi Upcycling',
-                  style: AppTypography.headlineSm(color: AppColors.onSurface),
-                ),
-              ],
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 2),
+                    child: Icon(
+                      Icons.auto_awesome_motion,
+                      size: 20,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Rekomendasi Upcycling',
+                      softWrap: true,
+                      style: AppTypography.headlineSm(
+                        color: AppColors.onSurface,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
+            const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
@@ -887,6 +1066,7 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
         const SizedBox(height: 4),
         Text(
           'Ide realistis berbasis komponen material, jumlah bahan, dan skala pengolahan:',
+          softWrap: true,
           style: AppTypography.bodySm(color: AppColors.onSurfaceVariant)
               .copyWith(fontSize: 11.5),
         ),
@@ -1025,18 +1205,18 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  Text(
+                    idea.title,
+                    softWrap: true,
+                    style: AppTypography.labelLg(color: AppColors.onSurface)
+                        .copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Expanded(
-                        child: Text(
-                          idea.title,
-                          style: AppTypography.labelLg(color: AppColors.onSurface)
-                              .copyWith(fontWeight: FontWeight.w700),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
@@ -1048,42 +1228,62 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
                         ),
                         child: Text(
                           idea.difficulty,
+                          softWrap: true,
                           style: AppTypography.labelSm(
                             color: AppColors.primary,
-                          ).copyWith(fontWeight: FontWeight.w700, fontSize: 10),
+                          ).copyWith(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 10,
+                          ),
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 3),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.schedule,
-                        size: 13,
-                        color: AppColors.secondary,
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.schedule,
+                            size: 13,
+                            color: AppColors.secondary,
+                          ),
+                          const SizedBox(width: 3),
+                          Flexible(
+                            child: Text(
+                              estTime,
+                              softWrap: true,
+                              style: AppTypography.bodySm(
+                                color: AppColors.onSurfaceVariant,
+                              ).copyWith(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 3),
-                      Text(
-                        estTime,
-                        style: AppTypography.bodySm(color: AppColors.onSurfaceVariant)
-                            .copyWith(fontSize: 11, fontWeight: FontWeight.w500),
-                      ),
-                      const SizedBox(width: 10),
-                      const Icon(
-                        Icons.trending_up,
-                        size: 13,
-                        color: AppColors.secondary,
-                      ),
-                      const SizedBox(width: 3),
-                      Flexible(
-                        child: Text(
-                          componentTag.isNotEmpty ? componentTag : scaleLabel,
-                          style: AppTypography.bodySm(color: AppColors.onSurfaceVariant)
-                              .copyWith(fontSize: 11, fontWeight: FontWeight.w500),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.trending_up,
+                            size: 13,
+                            color: AppColors.secondary,
+                          ),
+                          const SizedBox(width: 3),
+                          Flexible(
+                            child: Text(
+                              componentTag.isNotEmpty
+                                  ? componentTag
+                                  : scaleLabel,
+                              softWrap: true,
+                              style: AppTypography.bodySm(
+                                color: AppColors.onSurfaceVariant,
+                              ).copyWith(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -1149,16 +1349,21 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
                     ),
                   ),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
-                        child: Text(
-                          idea.title,
-                          style: AppTypography.headlineSm(
-                            color: AppColors.onSurface,
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            idea.title,
+                            softWrap: true,
+                            style: AppTypography.headlineSm(
+                              color: AppColors.onSurface,
+                            ),
                           ),
                         ),
                       ),
+                      const SizedBox(width: 8),
                       IconButton(
                         onPressed: () => Navigator.of(context).pop(),
                         icon: const Icon(Icons.close),
@@ -1172,25 +1377,28 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
                     children: [
                       if (componentTag.isNotEmpty)
                         Chip(
-                          label: Text('Bagian: $componentTag'),
+                          label: Text(
+                            'Bagian: $componentTag',
+                            softWrap: true,
+                          ),
                           backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                           labelStyle: AppTypography.labelSm(color: AppColors.primary),
                           padding: EdgeInsets.zero,
                         ),
                       Chip(
-                        label: Text(quantityLabel),
+                        label: Text(quantityLabel, softWrap: true),
                         backgroundColor: AppColors.surfaceContainerHigh,
                         labelStyle: AppTypography.labelSm(color: AppColors.onSurface),
                         padding: EdgeInsets.zero,
                       ),
                       Chip(
-                        label: Text(scaleLabel),
+                        label: Text(scaleLabel, softWrap: true),
                         backgroundColor: AppColors.surfaceContainerHigh,
                         labelStyle: AppTypography.labelSm(color: AppColors.onSurface),
                         padding: EdgeInsets.zero,
                       ),
                       Chip(
-                        label: Text(idea.difficulty),
+                        label: Text(idea.difficulty, softWrap: true),
                         backgroundColor: AppColors.secondaryContainer,
                         labelStyle: AppTypography.labelSm(color: AppColors.primary),
                         padding: EdgeInsets.zero,
@@ -1200,6 +1408,7 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
                   const SizedBox(height: 14),
                   Text(
                     idea.description,
+                    softWrap: true,
                     style: AppTypography.bodyMd(color: AppColors.onSurfaceVariant)
                         .copyWith(height: 1.4),
                   ),
@@ -1207,11 +1416,13 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
                     const SizedBox(height: 16),
                     Text(
                       'Mengapa Cocok untuk Material Ini?',
+                      softWrap: true,
                       style: AppTypography.labelLg(color: AppColors.onSurface),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       idea.whyItFits!,
+                      softWrap: true,
                       style: AppTypography.bodySm(color: AppColors.onSurfaceVariant)
                           .copyWith(height: 1.4),
                     ),
@@ -1220,11 +1431,13 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
                     const SizedBox(height: 16),
                     Text(
                       'Alat & Bahan Pendukung:',
+                      softWrap: true,
                       style: AppTypography.labelLg(color: AppColors.onSurface),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       idea.tools!,
+                      softWrap: true,
                       style: AppTypography.bodySm(color: AppColors.onSurfaceVariant),
                     ),
                   ],
@@ -1232,11 +1445,13 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
                     const SizedBox(height: 16),
                     Text(
                       'Langkah-Langkah Pengerjaan:',
+                      softWrap: true,
                       style: AppTypography.labelLg(color: AppColors.onSurface),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       idea.steps!,
+                      softWrap: true,
                       style: AppTypography.bodySm(color: AppColors.onSurfaceVariant)
                           .copyWith(height: 1.45),
                     ),
@@ -1244,6 +1459,7 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
                   if (idea.safetyNotes != null && idea.safetyNotes!.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     Container(
+                      width: double.infinity,
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: const Color(0xFFFEF3C7),
@@ -1264,6 +1480,7 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
                           Expanded(
                             child: Text(
                               'Keselamatan: ${idea.safetyNotes!}',
+                              softWrap: true,
                               style: AppTypography.bodySm(
                                 color: const Color(0xFF92400E),
                               ).copyWith(fontSize: 11.5, height: 1.35),
@@ -1303,7 +1520,6 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
         if (canSell)
           SizedBox(
             width: double.infinity,
-            height: 52,
             child: ElevatedButton.icon(
               onPressed: () {
                 Navigator.of(context).push(
@@ -1318,11 +1534,18 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
               icon: const Icon(Icons.sell_outlined, size: 20),
               label: Text(
                 'Jual Material Ini',
+                textAlign: TextAlign.center,
+                softWrap: true,
                 style: AppTypography.labelLg(color: Colors.white),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 52),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 shape: const StadiumBorder(),
                 elevation: 4,
                 shadowColor: const Color(0x33004330),
@@ -1334,7 +1557,6 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
         // ─── Tombol Sekunder: Cari Penerima di Marketplace ─────────
         SizedBox(
           width: double.infinity,
-          height: canSell ? 48 : 52,
           child: canSell
               ? OutlinedButton.icon(
                   onPressed: () {
@@ -1351,10 +1573,17 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
                     _isSearchingPartners
                         ? 'Membuka Marketplace...'
                         : 'Cari Penerima Material di Marketplace',
+                    textAlign: TextAlign.center,
+                    softWrap: true,
                     style: AppTypography.labelMd(color: AppColors.primary)
                         .copyWith(fontWeight: FontWeight.w600),
                   ),
                   style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 48),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     side: BorderSide(
                         color: AppColors.primary.withValues(alpha: 0.5)),
                     shape: const StadiumBorder(),
@@ -1366,16 +1595,27 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
                     Navigator.of(context).pop();
                     widget.navigationViewModel.goToMarketplace();
                   },
-                  icon: const Icon(Icons.location_on, size: 20, color: Colors.white),
+                  icon: const Icon(
+                    Icons.location_on,
+                    size: 20,
+                    color: Colors.white,
+                  ),
                   label: Text(
                     _isSearchingPartners
                         ? 'Membuka Marketplace...'
                         : 'Cari Penerima Material di Marketplace',
+                    textAlign: TextAlign.center,
+                    softWrap: true,
                     style: AppTypography.labelLg(color: Colors.white),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 52),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     shape: const StadiumBorder(),
                     elevation: 4,
                   ),
@@ -1386,7 +1626,6 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
         // ─── Tombol Tersier: Ajukan Kebutuhan ──────────────────────
         SizedBox(
           width: double.infinity,
-          height: 48,
           child: OutlinedButton.icon(
             onPressed: () {
               Navigator.of(context).pop();
@@ -1399,10 +1638,17 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
             ),
             label: Text(
               'Cari / Ajukan Kebutuhan (${widget.result.polymerCategory}) di Marketplace',
+              textAlign: TextAlign.center,
+              softWrap: true,
               style: AppTypography.labelMd(color: AppColors.primary)
                   .copyWith(fontWeight: FontWeight.w600),
             ),
             style: OutlinedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 48),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
               side: BorderSide(
                   color: AppColors.primary.withValues(alpha: 0.5)),
               shape: const StadiumBorder(),
@@ -1414,7 +1660,8 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
         // ─── Info: analisis tersimpan ───────────────────────────────
         Container(
           width: double.infinity,
-          height: 48,
+          constraints: const BoxConstraints(minHeight: 48),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
             color: AppColors.surfaceContainerLowest,
             borderRadius: BorderRadius.circular(999),
@@ -1431,10 +1678,15 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
                 color: AppColors.primary,
               ),
               const SizedBox(width: 8),
-              Text(
-                'Analisis tersimpan otomatis di sistem',
-                style:
-                    AppTypography.labelMd(color: AppColors.onSurfaceVariant),
+              Flexible(
+                child: Text(
+                  'Analisis tersimpan otomatis di sistem',
+                  textAlign: TextAlign.center,
+                  softWrap: true,
+                  style: AppTypography.labelMd(
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                ),
               ),
             ],
           ),

@@ -171,7 +171,7 @@ class ActivityScreen extends StatelessWidget {
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 10),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
           decoration: BoxDecoration(
             color: selected ? AppColors.surfaceContainerLowest : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
@@ -194,12 +194,16 @@ class ActivityScreen extends StatelessWidget {
                 color: selected ? AppColors.primary : AppColors.onSurfaceVariant,
               ),
               const SizedBox(width: 6),
-              Text(
-                label,
-                style: selected
-                    ? AppTypography.labelMd(color: AppColors.primary)
-                        .copyWith(fontWeight: FontWeight.w700)
-                    : AppTypography.labelMd(color: AppColors.onSurfaceVariant),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: selected
+                      ? AppTypography.labelMd(color: AppColors.primary)
+                          .copyWith(fontWeight: FontWeight.w700)
+                      : AppTypography.labelMd(color: AppColors.onSurfaceVariant),
+                ),
               ),
             ],
           ),
@@ -436,17 +440,23 @@ class ActivityScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        analysis.polymerCode,
-                        style: AppTypography.labelSm(
-                                color: AppColors.onSurfaceVariant)
-                            .copyWith(fontSize: 10),
+                      Expanded(
+                        child: Text(
+                          analysis.polymerCode,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          softWrap: false,
+                          style: AppTypography.labelSm(
+                                  color: AppColors.onSurfaceVariant)
+                              .copyWith(fontSize: 10),
+                        ),
                       ),
                     ],
                   ),
                 ],
               ),
             ),
+            const SizedBox(width: 8),
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
