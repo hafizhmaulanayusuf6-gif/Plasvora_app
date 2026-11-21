@@ -22,6 +22,9 @@ class AuthViewModel extends ChangeNotifier {
   bool get isLoading => _state == AuthState.loading;
   bool get hasConnectionError => _state == AuthState.connectionError;
 
+  bool _isUpdatingProfile = false;
+  bool get isUpdatingProfile => _isUpdatingProfile;
+
   bool _isRestoring = false;
   Future<void>? _activeRestoreFuture;
 
@@ -108,6 +111,7 @@ class AuthViewModel extends ChangeNotifier {
     required String email,
     required String password,
     required String passwordConfirmation,
+    String? phone,
   }) async {
     _state = AuthState.loading;
     _errorMessage = null;
@@ -119,6 +123,7 @@ class AuthViewModel extends ChangeNotifier {
         email: email,
         password: password,
         passwordConfirmation: passwordConfirmation,
+        phone: phone,
       );
       _currentUser = user;
       _state = AuthState.authenticated;
@@ -129,6 +134,45 @@ class AuthViewModel extends ChangeNotifier {
       _state = AuthState.error;
       notifyListeners();
       return false;
+    }
+  }
+
+  Future<bool> updateProfile({
+    String? name,
+    String? phone,
+    bool? whatsappPublic,
+  }) async {
+    if (_isUpdatingProfile) return false;
+
+    _isUpdatingProfile = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final updatedUser = await authRepository.updateProfile(
+        name: name,
+        phone: phone,
+        whatsappPublic: whatsappPublic,
+      );
+      _currentUser = updatedUser;
+      return true;
+    } on ApiException catch (e) {
+      final phoneErrors = e.errors?['phone'];
+      final privacyErrors = e.errors?['whatsapp_public'];
+      if (phoneErrors is List && phoneErrors.isNotEmpty) {
+        _errorMessage = phoneErrors.first.toString();
+      } else if (privacyErrors is List && privacyErrors.isNotEmpty) {
+        _errorMessage = privacyErrors.first.toString();
+      } else {
+        _errorMessage = e.message;
+      }
+      return false;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('ApiException: ', '');
+      return false;
+    } finally {
+      _isUpdatingProfile = false;
+      notifyListeners();
     }
   }
 

@@ -991,3 +991,137 @@ backup_analysis_result_overflow_fix/
 ```powershell
 Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\9f4d9fd8-c98a-4cfd-b6f4-014e9debce8b\backup_analysis_result_overflow_fix\lib\views\analysis\analysis_result_screen.dart" "C:\Project\Plasvora_app\lib\views\analysis\analysis_result_screen.dart" -Force
 ```
+
+
+
+---
+
+## 27. Backup Stage 1 Marketplace Foundation (Phone, WhatsApp Contact, Listing Image Upload & Lot Price Semantics — Frontend)
+
+**Tanggal**: 21 November 2026
+
+**Tujuan**:
+1. Menambahkan dukungan nomor telepon/WhatsApp opsional saat registrasi serta pembaruan nomor telepon pada modal profil akun yang sudah ada.
+2. Menambahkan tombol `Hubungi Penjual via WhatsApp` pada `MaterialDetailScreen` dengan format URL `https://wa.me/62...` dan pesan ter-encode berisi nama material (disembunyikan jika pemilik listing sendiri atau penjual belum memiliki nomor valid).
+3. Menambahkan deklarasi dependensi `url_launcher` di `pubspec.yaml` dan `<queries>` HTTPS di `AndroidManifest.xml`.
+4. Menambahkan pemilih & preview foto material dengan `image_picker` dan upload multipart pada `CreateMaterialListingScreen` dengan tetap menjaga alur `AI Analysis -> Jual Material Ini`.
+5. Memperjelas semantik harga satu lot (`Harga total (satu lot)`) pada form listing serta menampilkan estimasi harga per kg (display-only) pada `MaterialDetailScreen`.
+6. Menambahkan field nullable `ownerPhone`, `originDestinationId`, dan `originLabel` pada model `MaterialListing` serta memperbarui/menambah unit tests.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage1_marketplace_foundation_fe\`
+
+### File yang Di-backup Sebelum Diubah:
+1. `pubspec.yaml`
+2. `android/app/src/main/AndroidManifest.xml`
+3. `lib/core/network/api_client.dart`
+4. `lib/models/user_profile.dart`
+5. `lib/models/material_listing.dart`
+6. `lib/repositories/auth_repository.dart`
+7. `lib/repositories/material_repository.dart`
+8. `lib/viewmodels/auth_viewmodel.dart`
+9. `lib/viewmodels/marketplace_viewmodel.dart`
+10. `lib/views/auth/register_screen.dart`
+11. `lib/views/home/home_screen.dart`
+12. `lib/views/main_navigation_screen.dart`
+13. `lib/views/marketplace/marketplace_screen.dart`
+14. `lib/views/marketplace/material_detail_screen.dart`
+15. `lib/views/marketplace/create_material_listing_screen.dart`
+16. `lib/views/matching/matching_results_screen.dart`
+17. `test/auth_ui_test.dart`
+18. `test/marketplace_viewmodel_test.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+$bak = "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage1_marketplace_foundation_fe"
+Copy-Item "$bak\*" "C:\Project\Plasvora_app\" -Recurse -Force
+```
+
+
+---
+
+## 28. Backup Stage 1.1 WhatsApp Contact Privacy (Consent Toggle — Frontend)
+
+**Tanggal**: 21 November 2026
+**Tujuan**:
+1. Menambahkan field `whatsappPublic` (default `false`) pada model `UserProfile`.
+2. Memperluas `AuthRepository.updateProfile` dan `AuthViewModel.updateProfile` untuk mengirim `whatsapp_public` ke `PATCH /api/me` dengan proteksi toggle beruntun.
+3. Menambahkan kontrol switch `Tampilkan nomor WhatsApp saya pada detail material` beserta penjelasan, validasi ketersediaan nomor telepon, rollback saat gagal simpan, dan sinkronisasi state otomatis pada modal `Profil Akun` di `HomeScreen`.
+4. Menambahkan unit & widget tests pada `test/stage1_marketplace_foundation_test.dart` dan penyesuaian fake di `test/auth_ui_test.dart`.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage1_1_whatsapp_privacy_fe\`
+
+### File yang Di-backup Sebelum Diubah:
+1. `lib/models/user_profile.dart`
+2. `lib/repositories/auth_repository.dart`
+3. `lib/viewmodels/auth_viewmodel.dart`
+4. `lib/views/home/home_screen.dart`
+5. `test/auth_ui_test.dart`
+6. `test/stage1_marketplace_foundation_test.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+$bak = "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage1_1_whatsapp_privacy_fe"
+Copy-Item "$bak\*" "C:\Project\Plasvora_app\" -Recurse -Force
+```
+
+
+---
+
+## 29. Backup Perbaikan Widget Test Helper Modal Profil (Stage 1.1)
+
+**Tanggal**: 21 November 2026
+**Tujuan**:
+Memperbaiki finder avatar pada helper `openProfileModal()` di `test/stage1_marketplace_foundation_test.dart` agar menargetkan `GestureDetector` milik avatar pengguna (`child is ClipRRect`) di dalam `PlasvoraHeader`, bukan `GestureDetector` internal milik `InkWell` tombol notifikasi yang muncul lebih awal di widget tree. Tidak ada perubahan pada kode UI produksi.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage1_1_profile_modal_test_fix\`
+
+### File yang Di-backup Sebelum Diubah:
+1. `test/stage1_marketplace_foundation_test.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage1_1_profile_modal_test_fix\test\stage1_marketplace_foundation_test.dart" "C:\Project\Plasvora_app\test\stage1_marketplace_foundation_test.dart" -Force
+```
+
+
+---
+
+## 30. Backup Perbaikan Assertion Material ListTile pada Modal Profil (Stage 1.1)
+
+**Tanggal**: 21 November 2026
+**Tujuan**:
+Mengganti pembungkus `Container(decoration: BoxDecoration(...))` yang memicu assertion Flutter `ListTile background color or ink splashes may be invisible` pada `SwitchListTile.adaptive` di modal `Profil Akun` (`lib/views/home/home_screen.dart`) dengan `Material(color: ..., shape: RoundedRectangleBorder(...), clipBehavior: Clip.antiAlias)` agar efek ink splash tampil benar dan tampilan visual (warna latar, border, radius 14px, padding, tipografi) tetap identik.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage1_1_listtile_material_fix\`
+
+### File yang Di-backup Sebelum Diubah:
+1. `lib/views/home/home_screen.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage1_1_listtile_material_fix\lib\views\home\home_screen.dart" "C:\Project\Plasvora_app\lib\views\home\home_screen.dart" -Force
+```
+
+
+---
+
+## 31. Backup Perbaikan Konsistensi Query Reset Filter Kategori pada MarketplaceViewModel
+
+**Tanggal**: 21 November 2026
+**Tujuan**:
+Menyelaraskan pemetaan `categoryQuery` di `MarketplaceViewModel.loadListings()` (`lib/viewmodels/marketplace_viewmodel.dart`) agar nilai default UI `'Semua'` dipetakan menjadi `null` saat dikirim ke `materialRepository.getMaterials(...)`, konsisten dengan pemetaan `conditionQuery` (`_selectedCondition == 'Semua' ? null : _selectedCondition`) dan kontrak pengujian `test/marketplace_viewmodel_test.dart`.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_marketplace_filter_reset_fix\`
+
+### File yang Di-backup Sebelum Diubah:
+1. `lib/viewmodels/marketplace_viewmodel.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_marketplace_filter_reset_fix\lib\viewmodels\marketplace_viewmodel.dart" "C:\Project\Plasvora_app\lib\viewmodels\marketplace_viewmodel.dart" -Force
+```

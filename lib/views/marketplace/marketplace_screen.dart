@@ -5,6 +5,7 @@ import '../../core/theme/app_typography.dart';
 import '../../core/widgets/plasvora_header.dart';
 import '../../models/material_listing.dart';
 import '../../models/material_request_item.dart';
+import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/marketplace_viewmodel.dart';
 import '../../viewmodels/matching_viewmodel.dart';
 import '../../viewmodels/material_request_viewmodel.dart';
@@ -18,6 +19,7 @@ import 'material_detail_screen.dart';
 class MarketplaceScreen extends StatefulWidget {
   final MarketplaceViewModel viewModel;
   final NavigationViewModel navigationViewModel;
+  final AuthViewModel? authViewModel;
   final MaterialRequestViewModel? materialRequestViewModel;
   final MatchingViewModel? matchingViewModel;
 
@@ -25,6 +27,7 @@ class MarketplaceScreen extends StatefulWidget {
     super.key,
     required this.viewModel,
     required this.navigationViewModel,
+    this.authViewModel,
     this.materialRequestViewModel,
     this.matchingViewModel,
   });
@@ -1102,6 +1105,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     materialId: item.id,
                     initialMaterial: item,
                     viewModel: widget.viewModel,
+                    authViewModel: widget.authViewModel,
                     matchingViewModel: widget.matchingViewModel,
                   ),
                 ),

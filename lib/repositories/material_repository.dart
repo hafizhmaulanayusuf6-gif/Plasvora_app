@@ -23,6 +23,7 @@ abstract class MaterialRepository {
     required bool isFree,
     required String generalLocation,
     required String description,
+    String? imagePath,
   });
   Future<void> toggleFavorite(int id);
   Future<ImpactSummary> getImpactSummary();
@@ -111,24 +112,52 @@ class ApiMaterialRepository implements MaterialRepository {
     required bool isFree,
     required String generalLocation,
     required String description,
+    String? imagePath,
   }) async {
-    final response = await apiClient.post(
-      ApiConfig.materials,
-      body: {
-        'name': name,
-        'category': category,
-        'weight_kg': weightKg,
-        'condition': condition,
-        'price': price,
-        'is_free': isFree,
-        'general_location': generalLocation,
-        'description': description,
-      },
-      requiresAuth: true,
-    );
+    final hasImage = imagePath != null && imagePath.trim().isNotEmpty;
+    final dynamic response;
+
+    if (hasImage) {
+      response = await apiClient.postMultipart(
+        ApiConfig.materials,
+        fields: {
+          'name': name,
+          'category': category,
+          'weight_kg': weightKg.toString(),
+          'condition': condition,
+          'price': price.toString(),
+          'is_free': isFree ? '1' : '0',
+          'general_location': generalLocation,
+          'description': description,
+        },
+        fileField: 'image',
+        filePath: imagePath.trim(),
+        requiresAuth: true,
+      );
+    } else {
+      response = await apiClient.post(
+        ApiConfig.materials,
+        body: {
+          'name': name,
+          'category': category,
+          'weight_kg': weightKg,
+          'condition': condition,
+          'price': price,
+          'is_free': isFree,
+          'general_location': generalLocation,
+          'description': description,
+        },
+        requiresAuth: true,
+      );
+    }
 
     if (response is Map<String, dynamic> && response['data'] != null) {
-      return MaterialListing.fromJson(response['data'] as Map<String, dynamic>);
+      final listing = MaterialListing.fromJson(
+        response['data'] as Map<String, dynamic>,
+      );
+      return listing.copyWith(
+        localAsset: _resolveLocalFallbackAsset(listing.category),
+      );
     }
     throw ApiException('Gagal membuat listing material');
   }
@@ -321,6 +350,7 @@ class MockMaterialRepository implements MaterialRepository {
     required bool isFree,
     required String generalLocation,
     required String description,
+    String? imagePath,
   }) async {
     final newItem = MaterialListing(
       id: DateTime.now().millisecondsSinceEpoch,
@@ -332,6 +362,7 @@ class MockMaterialRepository implements MaterialRepository {
       isFree: isFree,
       generalLocation: generalLocation,
       description: description,
+      imageUrl: imagePath,
       createdAt: DateTime.now(),
     );
     _items.insert(0, newItem);

@@ -30,6 +30,7 @@ class FakeAuthRepository implements AuthRepository {
     required String email,
     required String password,
     required String passwordConfirmation,
+    String? phone,
   }) async {
     registerCalled = true;
     if (!shouldSucceed) throw Exception('Email sudah terdaftar');
@@ -37,6 +38,24 @@ class FakeAuthRepository implements AuthRepository {
       id: 2,
       name: name,
       email: email,
+      phone: phone,
+      createdAt: null,
+    );
+  }
+
+  @override
+  Future<UserProfile> updateProfile({
+    String? name,
+    String? phone,
+    bool? whatsappPublic,
+  }) async {
+    if (!shouldSucceed) throw Exception('Gagal memperbarui profil');
+    return UserProfile(
+      id: 1,
+      name: name ?? 'Budi Santoso',
+      email: 'budi@example.com',
+      phone: phone,
+      whatsappPublic: whatsappPublic ?? false,
       createdAt: null,
     );
   }
