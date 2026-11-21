@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/constants/app_assets.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import '../../core/utils/phone_utils.dart';
 import '../../core/widgets/plasvora_header.dart';
 import '../../models/material_listing.dart';
 import '../../viewmodels/auth_viewmodel.dart';
@@ -26,71 +27,413 @@ class HomeScreen extends StatelessWidget {
     if (authViewModel == null) return;
 
     if (authViewModel!.isAuthenticated) {
+      final phoneFormKey = GlobalKey<FormState>();
+      final phoneController = TextEditingController(
+        text: authViewModel!.currentUser?.phone ?? '',
+      );
+      bool whatsappPublic = authViewModel!.currentUser?.whatsappPublic ?? false;
+      bool isTogglingVisibility = false;
+      String? localError;
+      String? localSuccess;
+
       showModalBottomSheet(
         context: context,
+        isScrollControlled: true,
         backgroundColor: AppColors.surfaceContainerLowest,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         builder: (ctx) {
-          final user = authViewModel!.currentUser;
-          return SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Profil Akun',
-                    style: AppTypography.headlineSm(color: AppColors.primary),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    user?.name ?? 'Pengguna Plasvora',
-                    style: AppTypography.labelLg(color: AppColors.onSurface),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    user?.email ?? '',
-                    style: AppTypography.bodySm(color: AppColors.onSurfaceVariant),
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 46,
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.logout, color: Colors.red),
-                      label: const Text(
-                        'Keluar dari Akun',
-                        style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.red),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+          return StatefulBuilder(
+            builder: (ctx, setSheetState) {
+              return ListenableBuilder(
+                listenable: authViewModel!,
+                builder: (ctx, _) {
+                  final user = authViewModel!.currentUser;
+                  final isSaving = authViewModel!.isUpdatingProfile;
+                  final bottomInset = MediaQuery.of(ctx).viewInsets.bottom;
+                  final hasSavedValidPhone =
+                      PhoneUtils.normalizeIndonesianPhone(user?.phone) != null;
+                  final canToggleSwitch =
+                      !isSaving &&
+                      !isTogglingVisibility &&
+                      (hasSavedValidPhone || whatsappPublic);
+
+                  return SafeArea(
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.fromLTRB(24, 20, 24, 20 + bottomInset),
+                      child: Form(
+                        key: phoneFormKey,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Profil Akun',
+                              style: AppTypography.headlineSm(
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              user?.name ?? 'Pengguna Plasvora',
+                              style: AppTypography.labelLg(
+                                color: AppColors.onSurface,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              user?.email ?? '',
+                              style: AppTypography.bodySm(
+                                color: AppColors.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                            const Divider(height: 1),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    'Nomor WhatsApp / Telepon',
+                                    style: AppTypography.labelMd(
+                                      color: AppColors.onSurface,
+                                    ).copyWith(fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '(Opsional)',
+                                  style: AppTypography.labelSm(
+                                    color: AppColors.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            TextFormField(
+                              controller: phoneController,
+                              keyboardType: TextInputType.phone,
+                              textInputAction: TextInputAction.done,
+                              decoration: InputDecoration(
+                                hintText: 'Contoh: 081234567890',
+                                prefixIcon: const Icon(
+                                  Icons.phone_outlined,
+                                  size: 20,
+                                  color: AppColors.onSurfaceVariant,
+                                ),
+                                filled: true,
+                                fillColor: AppColors.surface,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 14,
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(
+                                    color: AppColors.outlineVariant,
+                                    width: 0.8,
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(
+                                    color: AppColors.outlineVariant,
+                                    width: 0.8,
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(
+                                    color: AppColors.primaryContainer,
+                                    width: 1.5,
+                                  ),
+                                ),
+                              ),
+                              validator:
+                                  PhoneUtils.validateOptionalIndonesianPhone,
+                              onChanged: (_) {
+                                if (localError != null || localSuccess != null) {
+                                  setSheetState(() {
+                                    localError = null;
+                                    localSuccess = null;
+                                  });
+                                }
+                              },
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              hasSavedValidPhone
+                                  ? 'Tersimpan: ${PhoneUtils.formatForDisplay(user!.phone)}'
+                                  : 'Tambahkan nomor telepon untuk mengaktifkan kontak WhatsApp.',
+                              style: AppTypography.labelSm(
+                                color: AppColors.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 48,
+                              child: ElevatedButton.icon(
+                                icon: (isSaving && !isTogglingVisibility)
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : const Icon(Icons.save_outlined, size: 18),
+                                label: Text(
+                                  (isSaving && !isTogglingVisibility)
+                                      ? 'Menyimpan...'
+                                      : 'Simpan Nomor',
+                                  style: AppTypography.labelMd(
+                                    color: Colors.white,
+                                  ).copyWith(fontWeight: FontWeight.w600),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primaryContainer,
+                                  foregroundColor: Colors.white,
+                                  shape: const StadiumBorder(),
+                                ),
+                                onPressed: isSaving
+                                    ? null
+                                    : () async {
+                                        if (!phoneFormKey.currentState!
+                                            .validate()) {
+                                          return;
+                                        }
+                                        setSheetState(() {
+                                          localError = null;
+                                          localSuccess = null;
+                                        });
+                                        final ok = await authViewModel!
+                                            .updateProfile(
+                                          phone: phoneController.text.trim(),
+                                        );
+                                        if (!ctx.mounted) return;
+                                        if (ok) {
+                                          final refreshed =
+                                              authViewModel!.currentUser;
+                                          setSheetState(() {
+                                            whatsappPublic =
+                                                refreshed?.whatsappPublic ??
+                                                    false;
+                                            localSuccess = refreshed?.phone !=
+                                                    null
+                                                ? 'Nomor telepon berhasil disimpan.'
+                                                : 'Nomor telepon dihapus dan visibilitas WhatsApp dinonaktifkan.';
+                                          });
+                                        } else {
+                                          setSheetState(() {
+                                            localError =
+                                                authViewModel!.errorMessage ??
+                                                    'Gagal memperbarui nomor telepon.';
+                                          });
+                                        }
+                                      },
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Pengaturan Privasi WhatsApp
+                            Material(
+                              color: AppColors.surface,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                side: BorderSide(
+                                  color: AppColors.outlineVariant
+                                      .withValues(alpha: 0.6),
+                                ),
+                              ),
+                              clipBehavior: Clip.antiAlias,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  SwitchListTile.adaptive(
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 6,
+                                    ),
+                                    activeTrackColor:
+                                        AppColors.primaryContainer,
+                                    title: Text(
+                                      'Tampilkan nomor WhatsApp saya pada detail material',
+                                      style: AppTypography.labelMd(
+                                        color: AppColors.onSurface,
+                                      ).copyWith(fontWeight: FontWeight.w600),
+                                    ),
+                                    subtitle: Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Text(
+                                        'Jika diaktifkan, pengguna lain dapat melihat nomor WhatsApp Anda dan menghubungi Anda melalui halaman detail material.',
+                                        style: AppTypography.bodySm(
+                                          color: AppColors.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ),
+                                    value: whatsappPublic,
+                                    onChanged: !canToggleSwitch
+                                        ? null
+                                        : (newValue) async {
+                                            if (isTogglingVisibility ||
+                                                isSaving) {
+                                              return;
+                                            }
+                                            final previousValue =
+                                                whatsappPublic;
+                                            setSheetState(() {
+                                              whatsappPublic = newValue;
+                                              isTogglingVisibility = true;
+                                              localError = null;
+                                              localSuccess = null;
+                                            });
+
+                                            final ok = await authViewModel!
+                                                .updateProfile(
+                                              whatsappPublic: newValue,
+                                            );
+                                            if (!ctx.mounted) return;
+
+                                            setSheetState(() {
+                                              isTogglingVisibility = false;
+                                              if (ok) {
+                                                whatsappPublic = authViewModel!
+                                                        .currentUser
+                                                        ?.whatsappPublic ??
+                                                    newValue;
+                                                localSuccess = whatsappPublic
+                                                    ? 'Nomor WhatsApp kini ditampilkan pada detail material.'
+                                                    : 'Nomor WhatsApp disembunyikan dari detail material.';
+                                              } else {
+                                                whatsappPublic = previousValue;
+                                                localError = authViewModel!
+                                                        .errorMessage ??
+                                                    'Gagal menyimpan pengaturan privasi WhatsApp.';
+                                              }
+                                            });
+                                          },
+                                  ),
+                                  if (!hasSavedValidPhone)
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        14,
+                                        0,
+                                        14,
+                                        12,
+                                      ),
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Icon(
+                                            Icons.info_outline,
+                                            size: 16,
+                                            color: AppColors.onSurfaceVariant,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: Text(
+                                              'Simpan nomor telepon yang valid terlebih dahulu untuk mengaktifkan visibilitas WhatsApp.',
+                                              style: AppTypography.labelSm(
+                                                color:
+                                                    AppColors.onSurfaceVariant,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  if (isTogglingVisibility)
+                                    const Padding(
+                                      padding: EdgeInsets.fromLTRB(
+                                        14,
+                                        0,
+                                        14,
+                                        10,
+                                      ),
+                                      child: LinearProgressIndicator(
+                                        minHeight: 2,
+                                        color: AppColors.primaryContainer,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+
+                            if (localError != null) ...[
+                              const SizedBox(height: 10),
+                              Text(
+                                localError!,
+                                style: AppTypography.bodySm(
+                                  color: AppColors.error,
+                                ),
+                              ),
+                            ],
+                            if (localSuccess != null) ...[
+                              const SizedBox(height: 10),
+                              Text(
+                                localSuccess!,
+                                style: AppTypography.bodySm(
+                                  color: AppColors.primary,
+                                ).copyWith(fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 48,
+                              child: OutlinedButton.icon(
+                                icon: const Icon(
+                                  Icons.logout,
+                                  color: Colors.red,
+                                ),
+                                label: const Text(
+                                  'Keluar dari Akun',
+                                  style: TextStyle(
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(color: Colors.red),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                onPressed: isSaving
+                                    ? null
+                                    : () async {
+                                        Navigator.of(ctx).pop();
+                                        await authViewModel!.logout();
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Anda telah berhasil keluar.',
+                                              ),
+                                              behavior:
+                                                  SnackBarBehavior.floating,
+                                            ),
+                                          );
+                                        }
+                                      },
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      onPressed: () async {
-                        Navigator.of(ctx).pop();
-                        await authViewModel!.logout();
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Anda telah berhasil keluar.'),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        }
-                      },
                     ),
-                  ),
-                ],
-              ),
-            ),
+                  );
+                },
+              );
+            },
           );
         },
-      );
+      ).whenComplete(phoneController.dispose);
     } else {
       Navigator.of(context).push(
         MaterialPageRoute(

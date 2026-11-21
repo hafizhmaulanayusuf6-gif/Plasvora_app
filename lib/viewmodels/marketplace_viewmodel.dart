@@ -83,8 +83,10 @@ class MarketplaceViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // BUG-09: Petakan label UI 'Lainnya' ke 'OTHER' saat memfilter API
-      final categoryQuery = _selectedCategory == 'Lainnya' ? 'OTHER' : _selectedCategory;
+      // BUG-09: Petakan label UI 'Semua' -> null dan 'Lainnya' -> 'OTHER' saat memfilter API
+      final categoryQuery = _selectedCategory == 'Semua'
+          ? null
+          : (_selectedCategory == 'Lainnya' ? 'OTHER' : _selectedCategory);
       final conditionQuery = _selectedCondition == 'Semua' ? null : _selectedCondition;
 
       final items = await materialRepository.getMaterials(
@@ -174,6 +176,7 @@ class MarketplaceViewModel extends ChangeNotifier {
     required bool isFree,
     required String generalLocation,
     required String description,
+    String? imagePath,
   }) async {
     _isLoading = true;
     _errorMessage = null;
@@ -195,6 +198,7 @@ class MarketplaceViewModel extends ChangeNotifier {
         isFree: isFree,
         generalLocation: generalLocation,
         description: description,
+        imagePath: imagePath,
       );
       _listings.insert(0, newListing);
       notifyListeners();

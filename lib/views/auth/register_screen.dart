@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import '../../core/utils/phone_utils.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -22,6 +23,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
@@ -33,6 +35,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -54,6 +57,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
+    final phone = _phoneController.text.trim();
     final password = _passwordController.text;
     final confirmPassword = _confirmPasswordController.text;
 
@@ -62,6 +66,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       email: email,
       password: password,
       passwordConfirmation: confirmPassword,
+      phone: phone.isNotEmpty ? phone : null,
     );
 
     if (!mounted) return;
@@ -88,8 +93,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isLoading = widget.authViewModel.isLoading;
-
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
@@ -133,7 +136,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     const SizedBox(height: 20),
 
                     // Registration Form Card
-                    _buildRegistrationCard(isLoading),
+                    ListenableBuilder(
+                      listenable: widget.authViewModel,
+                      builder: (context, _) => _buildRegistrationCard(
+                        widget.authViewModel.isLoading,
+                      ),
+                    ),
                     const SizedBox(height: 24),
 
                     // Login Redirection Link
@@ -271,6 +279,45 @@ class _RegisterScreenState extends State<RegisterScreen> {
               }
               return null;
             },
+          ),
+          const SizedBox(height: 16),
+
+          // 3. Optional Phone / WhatsApp Field
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  'Nomor WhatsApp / Telepon',
+                  style: AppTypography.labelMd(color: AppColors.onSurface).copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '(Opsional)',
+                style: AppTypography.labelSm(color: AppColors.onSurfaceVariant),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          TextFormField(
+            controller: _phoneController,
+            keyboardType: TextInputType.phone,
+            textInputAction: TextInputAction.next,
+            decoration: _inputDecoration(
+              hint: 'Contoh: 081234567890',
+              prefixIcon: Icons.phone_outlined,
+            ),
+            validator: PhoneUtils.validateOptionalIndonesianPhone,
+          ),
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.only(left: 4),
+            child: Text(
+              'Format 08..., 62..., atau +62... agar pembeli bisa menghubungi via WhatsApp',
+              style: AppTypography.labelSm(color: AppColors.onSurfaceVariant),
+            ),
           ),
           const SizedBox(height: 16),
 

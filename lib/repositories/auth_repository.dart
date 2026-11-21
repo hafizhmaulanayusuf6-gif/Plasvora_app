@@ -9,6 +9,12 @@ abstract class AuthRepository {
     required String email,
     required String password,
     required String passwordConfirmation,
+    String? phone,
+  });
+  Future<UserProfile> updateProfile({
+    String? name,
+    String? phone,
+    bool? whatsappPublic,
   });
   Future<UserProfile?> getCurrentUser();
   Future<void> logout();
@@ -51,15 +57,21 @@ class ApiAuthRepository implements AuthRepository {
     required String email,
     required String password,
     required String passwordConfirmation,
+    String? phone,
   }) async {
+    final body = <String, dynamic>{
+      'name': name,
+      'email': email,
+      'password': password,
+      'password_confirmation': passwordConfirmation,
+    };
+    if (phone != null && phone.trim().isNotEmpty) {
+      body['phone'] = phone.trim();
+    }
+
     final response = await apiClient.post(
       ApiConfig.register,
-      body: {
-        'name': name,
-        'email': email,
-        'password': password,
-        'password_confirmation': passwordConfirmation,
-      },
+      body: body,
       requiresAuth: false,
     );
 
@@ -72,6 +84,35 @@ class ApiAuthRepository implements AuthRepository {
       return UserProfile.fromJson(data['user'] as Map<String, dynamic>);
     }
     throw ApiException('Format respons registrasi tidak valid');
+  }
+
+  @override
+  Future<UserProfile> updateProfile({
+    String? name,
+    String? phone,
+    bool? whatsappPublic,
+  }) async {
+    final body = <String, dynamic>{};
+    if (name != null) {
+      body['name'] = name.trim();
+    }
+    if (phone != null) {
+      body['phone'] = phone.trim();
+    }
+    if (whatsappPublic != null) {
+      body['whatsapp_public'] = whatsappPublic;
+    }
+
+    final response = await apiClient.patch(
+      ApiConfig.me,
+      body: body,
+      requiresAuth: true,
+    );
+
+    if (response is Map<String, dynamic> && response['data'] is Map<String, dynamic>) {
+      return UserProfile.fromJson(response['data'] as Map<String, dynamic>);
+    }
+    throw ApiException('Format respons pembaruan profil tidak valid');
   }
 
   @override

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
@@ -26,6 +27,7 @@ class CreateMaterialListingScreen extends StatefulWidget {
 class _CreateMaterialListingScreenState
     extends State<CreateMaterialListingScreen> {
   final _formKey = GlobalKey<FormState>();
+  final ImagePicker _imagePicker = ImagePicker();
   late final TextEditingController _nameCtrl;
   late final TextEditingController _weightCtrl;
   final TextEditingController _locationCtrl = TextEditingController();
@@ -34,6 +36,8 @@ class _CreateMaterialListingScreenState
 
   late String _selectedCategory;
   String _selectedCondition = 'clean';
+  String? _selectedImagePath;
+  String? _imageError;
   bool _isFree = true;
   bool _isSubmitting = false;
 
@@ -75,6 +79,90 @@ class _CreateMaterialListingScreenState
     // Tentukan kategori awal
     final rawCat = analysis?.polymerCategory ?? 'PET';
     _selectedCategory = _categories.contains(rawCat) ? rawCat : 'Lainnya';
+
+    // Jika foto analisis adalah file lokal yang masih ada, siapkan untuk preview & upload
+    final analysisImg = analysis?.imagePath;
+    if (analysisImg != null &&
+        analysisImg.isNotEmpty &&
+        !analysisImg.startsWith('http://') &&
+        !analysisImg.startsWith('https://') &&
+        File(analysisImg).existsSync()) {
+      _selectedImagePath = analysisImg;
+    }
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    setState(() => _imageError = null);
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: source,
+        imageQuality: 85,
+        maxWidth: 1600,
+      );
+      if (picked != null && mounted) {
+        setState(() {
+          _selectedImagePath = picked.path;
+          _imageError = null;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _imageError =
+              'Gagal mengakses ${source == ImageSource.camera ? 'kamera' : 'galeri'}. Periksa izin aplikasi.';
+        });
+      }
+    }
+  }
+
+  void _showImageSourceSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surfaceContainerLowest,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Pilih Sumber Foto Material',
+                style: AppTypography.headlineSm(color: AppColors.onSurface),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const CircleAvatar(
+                  backgroundColor: AppColors.secondaryContainer,
+                  child: Icon(Icons.photo_camera, color: AppColors.primary),
+                ),
+                title: const Text('Ambil Foto dari Kamera'),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const CircleAvatar(
+                  backgroundColor: AppColors.secondaryContainer,
+                  child: Icon(Icons.photo_library, color: AppColors.primary),
+                ),
+                title: const Text('Pilih dari Galeri'),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   String _buildDescriptionFromAnalysis(PlasticAnalysisResult a) {
@@ -118,6 +206,7 @@ class _CreateMaterialListingScreenState
       isFree: _isFree,
       generalLocation: _locationCtrl.text.trim(),
       description: _descriptionCtrl.text.trim(),
+      imagePath: _selectedImagePath,
     );
 
     if (!mounted) return;
@@ -162,11 +251,9 @@ class _CreateMaterialListingScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ─── Foto preview analisis ─────────────────────────────
-              if (isFromAnalysis) ...[
-                _buildAnalysisPhotoPreview(analysis),
-                const SizedBox(height: 16),
-              ],
+              // ─── Foto material (pemilihan & preview upload) ────────
+              _buildPhotoSection(analysis),
+              const SizedBox(height: 16),
 
               // ─── Info banner jika dari analisis ───────────────────
               if (isFromAnalysis) ...[
@@ -301,12 +388,16 @@ class _CreateMaterialListingScreenState
                   keyboardType: TextInputType.number,
                   textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(
-                    labelText: 'Harga (Rp) *',
+                    labelText: 'Harga total (satu lot) *',
                     hintText: 'contoh: 15000',
+                    prefixText: 'Rp ',
+                    helperText:
+                        'Harga berlaku untuk seluruh berat lot material ini, bukan per kg.',
+                    helperMaxLines: 2,
                   ),
                   validator: (v) {
                     if (_isFree) return null;
-                    if (v == null || v.trim().isEmpty) return 'Harga wajib diisi jika tidak gratis.';
+                    if (v == null || v.trim().isEmpty) return 'Harga total (satu lot) wajib diisi jika tidak gratis.';
                     final p = num.tryParse(v.trim());
                     if (p == null || p <= 0) return 'Harga harus lebih dari 0.';
                     return null;
@@ -365,6 +456,206 @@ class _CreateMaterialListingScreenState
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildPhotoSection(PlasticAnalysisResult? analysis) {
+    final hasLocalSelection =
+        _selectedImagePath != null && _selectedImagePath!.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Flexible(
+              child: Text(
+                'Foto Material',
+                style: AppTypography.headlineSm(color: AppColors.onSurface),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '(Opsional)',
+              style: AppTypography.labelSm(color: AppColors.onSurfaceVariant),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        if (hasLocalSelection) ...[
+          Container(
+            width: double.infinity,
+            height: 180,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceContainer,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.file(
+                File(_selectedImagePath!),
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => Container(
+                  color: AppColors.surfaceContainer,
+                  alignment: Alignment.center,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.broken_image_outlined,
+                        size: 36,
+                        color: AppColors.outline,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Gagal memuat pratinjau foto',
+                        style: AppTypography.bodySm(
+                          color: AppColors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _isSubmitting ? null : _showImageSourceSheet,
+                  icon: const Icon(Icons.photo_camera_outlined, size: 18),
+                  label: const Text('Ganti Foto'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primaryContainer,
+                    minimumSize: const Size(0, 48),
+                    side: const BorderSide(color: AppColors.primaryContainer),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _isSubmitting
+                      ? null
+                      : () => setState(() {
+                            _selectedImagePath = null;
+                            _imageError = null;
+                          }),
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  label: const Text('Hapus Foto'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.error,
+                    minimumSize: const Size(0, 48),
+                    side: const BorderSide(color: AppColors.error),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ] else if (analysis != null) ...[
+          _buildAnalysisPhotoPreview(analysis),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _isSubmitting ? null : _showImageSourceSheet,
+              icon: const Icon(Icons.add_a_photo_outlined, size: 18),
+              label: const Text('Unggah Foto Baru dari Kamera / Galeri'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primaryContainer,
+                minimumSize: const Size(double.infinity, 48),
+                side: const BorderSide(color: AppColors.primaryContainer),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ] else ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppColors.outlineVariant.withValues(alpha: 0.7),
+              ),
+            ),
+            child: Column(
+              children: [
+                const Icon(
+                  Icons.add_photo_alternate_outlined,
+                  size: 36,
+                  color: AppColors.primaryContainer,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Tambahkan foto asli material agar pembeli lebih yakin.',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.bodySm(
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _isSubmitting
+                            ? null
+                            : () => _pickImage(ImageSource.camera),
+                        icon: const Icon(Icons.photo_camera, size: 18),
+                        label: const Text('Ambil Foto'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryContainer,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size(0, 48),
+                          shape: const StadiumBorder(),
+                          elevation: 0,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _isSubmitting
+                            ? null
+                            : () => _pickImage(ImageSource.gallery),
+                        icon: const Icon(Icons.photo_library_outlined, size: 18),
+                        label: const Text('Dari Galeri'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primaryContainer,
+                          minimumSize: const Size(0, 48),
+                          side: const BorderSide(
+                            color: AppColors.primaryContainer,
+                          ),
+                          shape: const StadiumBorder(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+        if (_imageError != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            _imageError!,
+            style: AppTypography.bodySm(color: AppColors.error),
+          ),
+        ],
+      ],
     );
   }
 

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import '../../core/utils/phone_utils.dart';
 import '../../models/material_listing.dart';
+import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/marketplace_viewmodel.dart';
 import '../../viewmodels/matching_viewmodel.dart';
 import '../matching/matching_results_screen.dart';
@@ -11,6 +14,7 @@ class MaterialDetailScreen extends StatefulWidget {
   final int materialId;
   final MaterialListing? initialMaterial;
   final MarketplaceViewModel viewModel;
+  final AuthViewModel? authViewModel;
   final MatchingViewModel? matchingViewModel;
 
   const MaterialDetailScreen({
@@ -18,6 +22,7 @@ class MaterialDetailScreen extends StatefulWidget {
     required this.materialId,
     this.initialMaterial,
     required this.viewModel,
+    this.authViewModel,
     this.matchingViewModel,
   });
 
@@ -28,6 +33,7 @@ class MaterialDetailScreen extends StatefulWidget {
 class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
   late MaterialListing? _material;
   bool _isLoading = false;
+  bool _isLaunchingWhatsApp = false;
   String? _errorMessage;
 
   @override
@@ -57,6 +63,43 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
           _errorMessage = e.toString().replaceFirst('ApiException: ', '');
           _isLoading = false;
         });
+      }
+    }
+  }
+
+  Future<void> _openSellerWhatsApp(Uri uri) async {
+    if (_isLaunchingWhatsApp) return;
+    setState(() => _isLaunchingWhatsApp = true);
+
+    try {
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Tidak dapat membuka WhatsApp. Pastikan aplikasi WhatsApp atau browser terpasang.',
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Gagal membuka WhatsApp. Silakan coba lagi beberapa saat.',
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLaunchingWhatsApp = false);
       }
     }
   }
@@ -199,35 +242,68 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
                 ),
                 const SizedBox(height: 8),
 
-                // 4. Harga / Gratis Badge
-                Row(
-                  children: [
-                    if (item.isFree)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.secondaryContainer,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          'Gratis',
-                          style: AppTypography.labelMd(
-                            color: AppColors.onSecondaryContainer,
-                          ).copyWith(fontWeight: FontWeight.w700),
-                        ),
-                      )
-                    else
-                      Text(
-                        item.formattedPrice,
-                        style: AppTypography.headlineMd(
-                          color: AppColors.primaryContainer,
-                        ).copyWith(fontWeight: FontWeight.w800),
+                // 4. Harga Total (Satu Lot) / Gratis Badge + Estimasi per kg (display-only)
+                if (item.isFree || item.price == 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondaryContainer,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Gratis',
+                      style: AppTypography.labelMd(
+                        color: AppColors.onSecondaryContainer,
+                      ).copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  )
+                else
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            item.formattedPrice,
+                            style: AppTypography.headlineMd(
+                              color: AppColors.primaryContainer,
+                            ).copyWith(fontWeight: FontWeight.w800),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceContainer,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'Harga total (satu lot)',
+                              style: AppTypography.labelSm(
+                                color: AppColors.onSurfaceVariant,
+                              ).copyWith(fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
                       ),
-                  ],
-                ),
+                      if (item.formattedEstimatedPricePerKg != null) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          'Estimasi ~${item.formattedEstimatedPricePerKg} (perkiraan saja)',
+                          style: AppTypography.bodySm(
+                            color: AppColors.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 const SizedBox(height: 20),
 
                 const Divider(),
@@ -301,11 +377,79 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // 7. Tombol Smart Matching untuk mencari kebutuhan yang cocok
+                // 7. Tombol Hubungi Penjual via WhatsApp (hanya jika bukan pemilik & nomor valid)
+                Builder(
+                  builder: (context) {
+                    final currentUserId = widget.authViewModel?.currentUser?.id;
+                    final isOwnListing =
+                        currentUserId != null && currentUserId == item.ownerId;
+                    final whatsappUri = isOwnListing
+                        ? null
+                        : PhoneUtils.buildSellerWhatsAppUri(
+                            sellerPhone: item.ownerPhone,
+                            materialName: item.name,
+                          );
+                    if (whatsappUri == null) {
+                      return const SizedBox.shrink();
+                    }
+                    return Column(
+                      children: [
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: _isLaunchingWhatsApp
+                                ? null
+                                : () => _openSellerWhatsApp(whatsappUri),
+                            icon: _isLaunchingWhatsApp
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Color(0xFF146C3A),
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.chat_outlined,
+                                    size: 20,
+                                    color: Color(0xFF146C3A),
+                                  ),
+                            label: Text(
+                              'Hubungi Penjual via WhatsApp',
+                              textAlign: TextAlign.center,
+                              softWrap: true,
+                              style: AppTypography.labelMd(
+                                color: const Color(0xFF146C3A),
+                              ).copyWith(fontWeight: FontWeight.w700),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              backgroundColor: const Color(0xFFE7F6EC),
+                              foregroundColor: const Color(0xFF146C3A),
+                              minimumSize: const Size(double.infinity, 48),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              side: const BorderSide(
+                                color: Color(0xFF25D366),
+                                width: 1.2,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                    );
+                  },
+                ),
+
+                // 8. Tombol Smart Matching untuk mencari kebutuhan yang cocok
                 if (widget.matchingViewModel != null) ...[
                   SizedBox(
                     width: double.infinity,
-                    height: 48,
                     child: OutlinedButton.icon(
                       onPressed: () {
                         Navigator.of(context).push(
@@ -313,6 +457,7 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
                             builder: (_) => MatchingResultsScreen(
                               matchingViewModel: widget.matchingViewModel!,
                               marketplaceViewModel: widget.viewModel,
+                              authViewModel: widget.authViewModel,
                               listingId: item.id,
                               title: 'Kebutuhan Cocok untuk ${item.categoryLabel}',
                             ),
@@ -323,11 +468,18 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
                           color: AppColors.primaryContainer),
                       label: Text(
                         'Cari Kebutuhan Cocok (Smart Matching)',
+                        textAlign: TextAlign.center,
+                        softWrap: true,
                         style: AppTypography.labelMd(
                           color: AppColors.primaryContainer,
                         ).copyWith(fontWeight: FontWeight.w700),
                       ),
                       style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 48),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         side:
                             const BorderSide(color: AppColors.primaryContainer),
                         shape: RoundedRectangleBorder(

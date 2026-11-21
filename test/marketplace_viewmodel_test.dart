@@ -76,6 +76,7 @@ class FakeMaterialRepository implements MaterialRepository {
     required bool isFree,
     required String generalLocation,
     required String description,
+    String? imagePath,
   }) async {
     return MaterialListing(
       id: 999,
@@ -87,6 +88,7 @@ class FakeMaterialRepository implements MaterialRepository {
       isFree: isFree,
       generalLocation: generalLocation,
       description: description,
+      imageUrl: imagePath,
       createdAt: DateTime.now(),
     );
   }

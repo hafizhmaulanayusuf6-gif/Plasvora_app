@@ -3,6 +3,7 @@ class MaterialListing {
   final int id;
   final int ownerId;
   final String? ownerName;
+  final String? ownerPhone;
   final String name;
   final String category; // PET, HDPE, PP, LDPE, PVC, PS, OTHER, MIXED, Lainnya
   final double weightKg;
@@ -10,6 +11,8 @@ class MaterialListing {
   final int price;
   final bool isFree;
   final String generalLocation;
+  final int? originDestinationId;
+  final String? originLabel;
   final double? distanceKm;
   final String description;
   final String? imageUrl;
@@ -22,6 +25,7 @@ class MaterialListing {
     required this.id,
     this.ownerId = 1,
     this.ownerName,
+    this.ownerPhone,
     required this.name,
     required this.category,
     required this.weightKg,
@@ -29,6 +33,8 @@ class MaterialListing {
     required this.price,
     required this.isFree,
     required this.generalLocation,
+    this.originDestinationId,
+    this.originLabel,
     this.distanceKm,
     required this.description,
     this.imageUrl,
@@ -37,6 +43,19 @@ class MaterialListing {
     this.isFavorited = false,
     required this.createdAt,
   });
+
+  static String formatRupiah(int amount) {
+    final str = amount.abs().toString();
+    final buffer = StringBuffer();
+    for (int i = 0; i < str.length; i++) {
+      if (i > 0 && (str.length - i) % 3 == 0) {
+        buffer.write('.');
+      }
+      buffer.write(str[i]);
+    }
+    final prefix = amount < 0 ? '-Rp ' : 'Rp ';
+    return '$prefix$buffer';
+  }
 
   String get conditionLabel {
     switch (condition.toLowerCase()) {
@@ -68,22 +87,29 @@ class MaterialListing {
     if (isFree || price == 0) {
       return 'Gratis';
     }
-    // format as Rp XX.XXX
-    final str = price.toString();
-    final buffer = StringBuffer();
-    for (int i = 0; i < str.length; i++) {
-      if (i > 0 && (str.length - i) % 3 == 0) {
-        buffer.write('.');
-      }
-      buffer.write(str[i]);
+    return formatRupiah(price);
+  }
+
+  /// Estimasi harga per kg (display-only, bukan harga transaksi checkout).
+  double? get estimatedPricePerKg {
+    if (isFree || price <= 0 || weightKg <= 0) {
+      return null;
     }
-    return 'Rp $buffer';
+    return price / weightKg;
+  }
+
+  /// Format estimasi harga per kg untuk tampilan sekunder di detail material.
+  String? get formattedEstimatedPricePerKg {
+    final estimate = estimatedPricePerKg;
+    if (estimate == null) return null;
+    return '${formatRupiah(estimate.round())} / kg';
   }
 
   MaterialListing copyWith({
     int? id,
     int? ownerId,
     String? ownerName,
+    String? ownerPhone,
     String? name,
     String? category,
     double? weightKg,
@@ -91,6 +117,8 @@ class MaterialListing {
     int? price,
     bool? isFree,
     String? generalLocation,
+    int? originDestinationId,
+    String? originLabel,
     double? distanceKm,
     String? description,
     String? imageUrl,
@@ -103,6 +131,7 @@ class MaterialListing {
       id: id ?? this.id,
       ownerId: ownerId ?? this.ownerId,
       ownerName: ownerName ?? this.ownerName,
+      ownerPhone: ownerPhone ?? this.ownerPhone,
       name: name ?? this.name,
       category: category ?? this.category,
       weightKg: weightKg ?? this.weightKg,
@@ -110,6 +139,8 @@ class MaterialListing {
       price: price ?? this.price,
       isFree: isFree ?? this.isFree,
       generalLocation: generalLocation ?? this.generalLocation,
+      originDestinationId: originDestinationId ?? this.originDestinationId,
+      originLabel: originLabel ?? this.originLabel,
       distanceKm: distanceKm ?? this.distanceKm,
       description: description ?? this.description,
       imageUrl: imageUrl ?? this.imageUrl,
@@ -121,10 +152,16 @@ class MaterialListing {
   }
 
   factory MaterialListing.fromJson(Map<String, dynamic> json) {
+    final ownerMap = json['owner'] is Map<String, dynamic>
+        ? json['owner'] as Map<String, dynamic>
+        : null;
+    final rawOwnerPhone = (ownerMap?['phone'] ?? json['owner_phone'])?.toString().trim();
+
     return MaterialListing(
       id: json['id'] is int ? json['id'] as int : (int.tryParse(json['id']?.toString() ?? '0') ?? 0),
       ownerId: json['owner_id'] is int ? json['owner_id'] as int : (int.tryParse(json['owner_id']?.toString() ?? '1') ?? 1),
-      ownerName: json['owner'] is Map<String, dynamic> ? json['owner']['name'] as String? : json['owner_name'] as String?,
+      ownerName: ownerMap != null ? ownerMap['name'] as String? : json['owner_name'] as String?,
+      ownerPhone: (rawOwnerPhone != null && rawOwnerPhone.isNotEmpty) ? rawOwnerPhone : null,
       name: json['name'] as String? ?? '',
       category: json['category'] as String? ?? 'OTHER',
       weightKg: json['weight_kg'] is num
@@ -138,6 +175,12 @@ class MaterialListing {
           ? json['is_free'] as bool
           : (json['is_free']?.toString() == '1' || json['is_free']?.toString() == 'true'),
       generalLocation: json['general_location'] as String? ?? '',
+      originDestinationId: json['origin_destination_id'] is int
+          ? json['origin_destination_id'] as int
+          : (json['origin_destination_id'] != null
+              ? int.tryParse(json['origin_destination_id'].toString())
+              : null),
+      originLabel: json['origin_label'] as String?,
       distanceKm: json['distance_km'] is num
           ? (json['distance_km'] as num).toDouble()
           : (json['distance_km'] != null ? double.tryParse(json['distance_km'].toString()) : null),
@@ -157,6 +200,7 @@ class MaterialListing {
       'id': id,
       'owner_id': ownerId,
       'owner_name': ownerName,
+      if (ownerPhone != null) 'owner_phone': ownerPhone,
       'name': name,
       'category': category,
       'weight_kg': weightKg,
@@ -164,6 +208,8 @@ class MaterialListing {
       'price': price,
       'is_free': isFree,
       'general_location': generalLocation,
+      if (originDestinationId != null) 'origin_destination_id': originDestinationId,
+      if (originLabel != null) 'origin_label': originLabel,
       'distance_km': distanceKm,
       'description': description,
       'image_url': imageUrl,

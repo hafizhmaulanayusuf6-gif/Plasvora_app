@@ -60,6 +60,7 @@ class MainNavigationScreen extends StatelessWidget {
               MarketplaceScreen(
                 viewModel: marketplaceViewModel,
                 navigationViewModel: navigationViewModel,
+                authViewModel: authViewModel,
                 materialRequestViewModel: materialRequestViewModel,
                 matchingViewModel: matchingViewModel,
               ),

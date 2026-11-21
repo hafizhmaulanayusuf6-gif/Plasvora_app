@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../models/matching_result.dart';
+import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/marketplace_viewmodel.dart';
 import '../../viewmodels/matching_viewmodel.dart';
 import '../marketplace/material_detail_screen.dart';
@@ -9,6 +10,7 @@ import '../marketplace/material_detail_screen.dart';
 class MatchingResultsScreen extends StatefulWidget {
   final MatchingViewModel matchingViewModel;
   final MarketplaceViewModel marketplaceViewModel;
+  final AuthViewModel? authViewModel;
   final int? requestId;
   final int? listingId;
   final String? title;
@@ -17,6 +19,7 @@ class MatchingResultsScreen extends StatefulWidget {
     super.key,
     required this.matchingViewModel,
     required this.marketplaceViewModel,
+    this.authViewModel,
     this.requestId,
     this.listingId,
     this.title,
@@ -336,6 +339,7 @@ class _MatchingResultsScreenState extends State<MatchingResultsScreen> {
                   materialId: listing.id,
                   initialMaterial: listing,
                   viewModel: widget.marketplaceViewModel,
+                  authViewModel: widget.authViewModel,
                 ),
               ),
             );

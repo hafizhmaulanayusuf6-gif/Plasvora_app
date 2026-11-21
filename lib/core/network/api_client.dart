@@ -355,7 +355,7 @@ class ApiClient {
     } on SocketException {
       throw ApiException('Tidak dapat terhubung ke server backend');
     } on TimeoutException {
-      throw ApiException('Koneksi ke backend timeout saat memproses analisis.');
+      throw ApiException('Waktu tunggu upload ke server habis (timeout).');
     } on http.ClientException catch (e) {
       throw ApiException('Gagal berkomunikasi dengan backend: ${e.message}');
     }
