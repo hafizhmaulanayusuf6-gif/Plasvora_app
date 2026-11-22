@@ -66,6 +66,17 @@ class ActivityItem {
           return Icons.cancel_outlined;
         }
         return Icons.swap_horiz_outlined;
+      case 'order':
+        if (status == 'completed') {
+          return Icons.check_circle_outline;
+        } else if (status == 'shipped') {
+          return Icons.local_shipping_outlined;
+        } else if (status == 'paid') {
+          return Icons.payments_outlined;
+        } else if (status == 'cancelled' || status == 'expired') {
+          return Icons.cancel_outlined;
+        }
+        return Icons.receipt_long_outlined;
       default:
         return Icons.history;
     }
@@ -98,6 +109,14 @@ class ActivityItem {
         return 'Ditolak';
       case 'cancelled':
         return 'Dibatalkan';
+      case 'pending_payment':
+        return 'Menunggu Pembayaran';
+      case 'paid':
+        return 'Dibayar';
+      case 'shipped':
+        return 'Dikirim';
+      case 'expired':
+        return 'Kedaluwarsa';
       default:
         return status.isNotEmpty
             ? '${status[0].toUpperCase()}${status.substring(1)}'
@@ -112,16 +131,20 @@ class ActivityItem {
       case 'active':
       case 'approved':
       case 'completed':
+      case 'paid':
         return AppColors.primary;
       case 'utilization_confirmed':
         return const Color(0xFF1B5E20);
       case 'handed_over':
       case 'reserved':
+      case 'shipped':
         return AppColors.secondary;
       case 'pending':
+      case 'pending_payment':
         return const Color(0xFFE65100);
       case 'rejected':
       case 'cancelled':
+      case 'expired':
         return const Color(0xFFC62828);
       default:
         return AppColors.onSurfaceVariant;
@@ -135,16 +158,20 @@ class ActivityItem {
       case 'active':
       case 'approved':
       case 'completed':
+      case 'paid':
         return const Color(0xFFE8F5E9);
       case 'utilization_confirmed':
         return AppColors.secondaryContainer;
       case 'handed_over':
       case 'reserved':
+      case 'shipped':
         return AppColors.surfaceContainer;
       case 'pending':
+      case 'pending_payment':
         return const Color(0xFFFFF3E0);
       case 'rejected':
       case 'cancelled':
+      case 'expired':
         return const Color(0xFFFFEBEE);
       default:
         return AppColors.surfaceContainer;

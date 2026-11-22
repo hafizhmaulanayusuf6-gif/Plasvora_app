@@ -4,6 +4,41 @@ import '../core/network/api_config.dart';
 import '../models/impact_summary.dart';
 import '../models/material_listing.dart';
 
+/// Validasi ketat pasangan origin sebelum request dikirim.
+/// Mengembalikan true bila pasangan valid disertakan, false bila keduanya absen.
+/// Melempar ArgumentError untuk half-pair, ID <= 0, label whitespace-only, atau konflik clearOrigin.
+bool _validateOriginPair({
+  int? originDestinationId,
+  String? originLabel,
+  bool clearOrigin = false,
+}) {
+  final hasAnyOriginInput = originDestinationId != null || originLabel != null;
+
+  if (clearOrigin && hasAnyOriginInput) {
+    throw ArgumentError(
+      'clearOrigin tidak boleh dikombinasikan dengan originDestinationId atau originLabel.',
+    );
+  }
+
+  if (!hasAnyOriginInput) {
+    return false;
+  }
+
+  if (originDestinationId == null || originDestinationId <= 0) {
+    throw ArgumentError(
+      'originDestinationId wajib berupa angka positif saat originLabel disertakan.',
+    );
+  }
+
+  if (originLabel == null || originLabel.trim().isEmpty) {
+    throw ArgumentError(
+      'originLabel wajib diisi (tidak boleh kosong/spasi) saat originDestinationId disertakan.',
+    );
+  }
+
+  return true;
+}
+
 abstract class MaterialRepository {
   Future<List<MaterialListing>> getMaterials({
     String? category,
@@ -23,6 +58,23 @@ abstract class MaterialRepository {
     required bool isFree,
     required String generalLocation,
     required String description,
+    int? originDestinationId,
+    String? originLabel,
+    String? imagePath,
+  });
+  Future<MaterialListing> updateMaterial({
+    required int id,
+    String? name,
+    String? category,
+    double? weightKg,
+    String? condition,
+    int? price,
+    bool? isFree,
+    String? generalLocation,
+    String? description,
+    int? originDestinationId,
+    String? originLabel,
+    bool clearOrigin = false,
     String? imagePath,
   });
   Future<void> toggleFavorite(int id);
@@ -112,41 +164,59 @@ class ApiMaterialRepository implements MaterialRepository {
     required bool isFree,
     required String generalLocation,
     required String description,
+    int? originDestinationId,
+    String? originLabel,
     String? imagePath,
   }) async {
+    final hasValidOriginPair = _validateOriginPair(
+      originDestinationId: originDestinationId,
+      originLabel: originLabel,
+    );
     final hasImage = imagePath != null && imagePath.trim().isNotEmpty;
     final dynamic response;
 
     if (hasImage) {
+      final fields = <String, String>{
+        'name': name,
+        'category': category,
+        'weight_kg': weightKg.toString(),
+        'condition': condition,
+        'price': price.toString(),
+        'is_free': isFree ? '1' : '0',
+        'general_location': generalLocation,
+        'description': description,
+      };
+      if (hasValidOriginPair) {
+        fields['origin_destination_id'] = originDestinationId.toString();
+        fields['origin_label'] = originLabel!.trim();
+      }
+
       response = await apiClient.postMultipart(
         ApiConfig.materials,
-        fields: {
-          'name': name,
-          'category': category,
-          'weight_kg': weightKg.toString(),
-          'condition': condition,
-          'price': price.toString(),
-          'is_free': isFree ? '1' : '0',
-          'general_location': generalLocation,
-          'description': description,
-        },
+        fields: fields,
         fileField: 'image',
         filePath: imagePath.trim(),
         requiresAuth: true,
       );
     } else {
+      final body = <String, dynamic>{
+        'name': name,
+        'category': category,
+        'weight_kg': weightKg,
+        'condition': condition,
+        'price': price,
+        'is_free': isFree,
+        'general_location': generalLocation,
+        'description': description,
+      };
+      if (hasValidOriginPair) {
+        body['origin_destination_id'] = originDestinationId;
+        body['origin_label'] = originLabel!.trim();
+      }
+
       response = await apiClient.post(
         ApiConfig.materials,
-        body: {
-          'name': name,
-          'category': category,
-          'weight_kg': weightKg,
-          'condition': condition,
-          'price': price,
-          'is_free': isFree,
-          'general_location': generalLocation,
-          'description': description,
-        },
+        body: body,
         requiresAuth: true,
       );
     }
@@ -160,6 +230,92 @@ class ApiMaterialRepository implements MaterialRepository {
       );
     }
     throw ApiException('Gagal membuat listing material');
+  }
+
+  @override
+  Future<MaterialListing> updateMaterial({
+    required int id,
+    String? name,
+    String? category,
+    double? weightKg,
+    String? condition,
+    int? price,
+    bool? isFree,
+    String? generalLocation,
+    String? description,
+    int? originDestinationId,
+    String? originLabel,
+    bool clearOrigin = false,
+    String? imagePath,
+  }) async {
+    final hasValidOriginPair = _validateOriginPair(
+      originDestinationId: originDestinationId,
+      originLabel: originLabel,
+      clearOrigin: clearOrigin,
+    );
+    final hasImage = imagePath != null && imagePath.trim().isNotEmpty;
+    final dynamic response;
+
+    if (hasImage) {
+      final fields = <String, String>{'_method': 'PATCH'};
+      if (name != null) fields['name'] = name;
+      if (category != null) fields['category'] = category;
+      if (weightKg != null) fields['weight_kg'] = weightKg.toString();
+      if (condition != null) fields['condition'] = condition;
+      if (price != null) fields['price'] = price.toString();
+      if (isFree != null) fields['is_free'] = isFree ? '1' : '0';
+      if (generalLocation != null) fields['general_location'] = generalLocation;
+      if (description != null) fields['description'] = description;
+      if (clearOrigin) {
+        fields['origin_destination_id'] = '';
+        fields['origin_label'] = '';
+      } else if (hasValidOriginPair) {
+        fields['origin_destination_id'] = originDestinationId.toString();
+        fields['origin_label'] = originLabel!.trim();
+      }
+
+      response = await apiClient.postMultipart(
+        ApiConfig.materialDetail(id),
+        fields: fields,
+        fileField: 'image',
+        filePath: imagePath.trim(),
+        requiresAuth: true,
+      );
+    } else {
+      final body = <String, dynamic>{};
+      if (name != null) body['name'] = name;
+      if (category != null) body['category'] = category;
+      if (weightKg != null) body['weight_kg'] = weightKg;
+      if (condition != null) body['condition'] = condition;
+      if (price != null) body['price'] = price;
+      if (isFree != null) body['is_free'] = isFree;
+      if (generalLocation != null) body['general_location'] = generalLocation;
+      if (description != null) body['description'] = description;
+      if (clearOrigin) {
+        body['origin_destination_id'] = null;
+        body['origin_label'] = null;
+      } else if (hasValidOriginPair) {
+        body['origin_destination_id'] = originDestinationId;
+        body['origin_label'] = originLabel!.trim();
+      }
+
+      response = await apiClient.patch(
+        ApiConfig.materialDetail(id),
+        body: body,
+        requiresAuth: true,
+      );
+    }
+
+    if (response is Map<String, dynamic> && response['data'] != null) {
+      final listing = MaterialListing.fromJson(
+        response['data'] as Map<String, dynamic>,
+      );
+      return listing.copyWith(
+        isFavorited: _favoriteIds.contains(listing.id),
+        localAsset: _resolveLocalFallbackAsset(listing.category),
+      );
+    }
+    throw ApiException('Gagal memperbarui listing material');
   }
 
   @override
@@ -350,8 +506,15 @@ class MockMaterialRepository implements MaterialRepository {
     required bool isFree,
     required String generalLocation,
     required String description,
+    int? originDestinationId,
+    String? originLabel,
     String? imagePath,
   }) async {
+    final hasValidOriginPair = _validateOriginPair(
+      originDestinationId: originDestinationId,
+      originLabel: originLabel,
+    );
+
     final newItem = MaterialListing(
       id: DateTime.now().millisecondsSinceEpoch,
       name: name,
@@ -361,12 +524,76 @@ class MockMaterialRepository implements MaterialRepository {
       price: price,
       isFree: isFree,
       generalLocation: generalLocation,
+      originDestinationId: hasValidOriginPair ? originDestinationId : null,
+      originLabel: hasValidOriginPair ? originLabel!.trim() : null,
       description: description,
       imageUrl: imagePath,
       createdAt: DateTime.now(),
     );
     _items.insert(0, newItem);
     return newItem;
+  }
+
+  @override
+  Future<MaterialListing> updateMaterial({
+    required int id,
+    String? name,
+    String? category,
+    double? weightKg,
+    String? condition,
+    int? price,
+    bool? isFree,
+    String? generalLocation,
+    String? description,
+    int? originDestinationId,
+    String? originLabel,
+    bool clearOrigin = false,
+    String? imagePath,
+  }) async {
+    final hasValidOriginPair = _validateOriginPair(
+      originDestinationId: originDestinationId,
+      originLabel: originLabel,
+      clearOrigin: clearOrigin,
+    );
+
+    final idx = _items.indexWhere((element) => element.id == id);
+    if (idx == -1) {
+      throw ApiException('Material tidak ditemukan', statusCode: 404);
+    }
+    final current = _items[idx];
+
+    final updated = MaterialListing(
+      id: current.id,
+      ownerId: current.ownerId,
+      ownerName: current.ownerName,
+      ownerPhone: current.ownerPhone,
+      name: name ?? current.name,
+      category: category ?? current.category,
+      weightKg: weightKg ?? current.weightKg,
+      condition: condition ?? current.condition,
+      price: (isFree == true) ? 0 : (price ?? current.price),
+      isFree: isFree ?? current.isFree,
+      generalLocation: generalLocation ?? current.generalLocation,
+      originDestinationId: clearOrigin
+          ? null
+          : (hasValidOriginPair
+              ? originDestinationId
+              : current.originDestinationId),
+      originLabel: clearOrigin
+          ? null
+          : (hasValidOriginPair ? originLabel!.trim() : current.originLabel),
+      distanceKm: current.distanceKm,
+      description: description ?? current.description,
+      imageUrl: (imagePath != null && imagePath.trim().isNotEmpty)
+          ? imagePath.trim()
+          : current.imageUrl,
+      localAsset: current.localAsset,
+      status: current.status,
+      isFavorited: current.isFavorited,
+      createdAt: current.createdAt,
+    );
+    _items[idx] = updated;
+    return updated;
   }
 
   @override

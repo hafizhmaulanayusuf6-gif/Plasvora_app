@@ -55,6 +55,9 @@ class MarketplaceViewModel extends ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  bool _isSaving = false;
+  bool get isSaving => _isSaving;
+
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
@@ -176,9 +179,12 @@ class MarketplaceViewModel extends ChangeNotifier {
     required bool isFree,
     required String generalLocation,
     required String description,
+    int? originDestinationId,
+    String? originLabel,
     String? imagePath,
   }) async {
     _isLoading = true;
+    _isSaving = true;
     _errorMessage = null;
     notifyListeners();
 
@@ -198,17 +204,83 @@ class MarketplaceViewModel extends ChangeNotifier {
         isFree: isFree,
         generalLocation: generalLocation,
         description: description,
+        originDestinationId: originDestinationId,
+        originLabel: originLabel,
         imagePath: imagePath,
       );
       _listings.insert(0, newListing);
       notifyListeners();
       return true;
+    } on ArgumentError {
+      rethrow;
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('ApiException: ', '');
       notifyListeners();
       return false;
     } finally {
       _isLoading = false;
+      _isSaving = false;
+      notifyListeners();
+    }
+  }
+
+  Future<MaterialListing?> updateListing({
+    required int id,
+    String? name,
+    String? category,
+    double? weightKg,
+    String? condition,
+    int? price,
+    bool? isFree,
+    String? generalLocation,
+    String? description,
+    int? originDestinationId,
+    String? originLabel,
+    bool clearOrigin = false,
+    String? imagePath,
+  }) async {
+    if (_isSaving) return null;
+
+    _isSaving = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final normalizedCategory = category == null
+          ? null
+          : (category.trim() == 'Lainnya' ? 'OTHER' : category.trim());
+      final normalizedCondition = condition == null
+          ? null
+          : (condition.trim() == 'light' ? 'slightly_dirty' : condition.trim());
+
+      final updated = await materialRepository.updateMaterial(
+        id: id,
+        name: name,
+        category: normalizedCategory,
+        weightKg: weightKg,
+        condition: normalizedCondition,
+        price: price,
+        isFree: isFree,
+        generalLocation: generalLocation,
+        description: description,
+        originDestinationId: originDestinationId,
+        originLabel: originLabel,
+        clearOrigin: clearOrigin,
+        imagePath: imagePath,
+      );
+
+      final index = _listings.indexWhere((element) => element.id == id);
+      if (index != -1) {
+        _listings[index] = updated;
+      }
+      return updated;
+    } on ArgumentError {
+      rethrow;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('ApiException: ', '');
+      return null;
+    } finally {
+      _isSaving = false;
       notifyListeners();
     }
   }

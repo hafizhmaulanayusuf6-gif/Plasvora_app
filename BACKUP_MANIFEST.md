@@ -1125,3 +1125,427 @@ Direktori Backup Fisik:
 ```powershell
 Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_marketplace_filter_reset_fix\lib\viewmodels\marketplace_viewmodel.dart" "C:\Project\Plasvora_app\lib\viewmodels\marketplace_viewmodel.dart" -Force
 ```
+
+
+---
+
+## 32. Backup Stage 2 Batch 3 — Flutter Data Layer (Addresses, Shipping & Listing Origin/Update)
+
+**Tanggal**: 22 November 2026
+**Tujuan**:
+1. Menambahkan endpoint terpusat `/addresses`, `/shipping/destinations`, dan `/shipping/estimate` di `lib/core/network/api_config.dart`.
+2. Membuat model data (`ShippingDestination`, `ShippingCostOption`, `ShippingEstimateResult`, `UserAddress`), repository (`AddressRepository`, `ShippingRepository`), serta `AddressViewModel`.
+3. Memperluas `MaterialRepository` dan `MarketplaceViewModel` untuk mendukung field origin (`originDestinationId`, `originLabel`) saat create serta operasi `updateMaterial` / `updateListing` (JSON PATCH dan multipart replacement image dengan `_method=PATCH`).
+4. Menyiapkan injeksi dependensi manual (`AddressViewModel`, `ShippingRepository`) di `lib/main.dart` dan `lib/views/main_navigation_screen.dart` tanpa perubahan UI.
+5. Menambahkan unit tests data layer pada `test/stage3_data_layer_test.dart` serta pembaruan fake repository di `test/marketplace_viewmodel_test.dart`.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage2_batch3_fe\`
+
+### File yang Di-backup Sebelum Diubah:
+1. `lib/core/network/api_config.dart`
+2. `lib/repositories/material_repository.dart`
+3. `lib/viewmodels/marketplace_viewmodel.dart`
+4. `lib/main.dart`
+5. `lib/views/main_navigation_screen.dart`
+6. `test/marketplace_viewmodel_test.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+$bak = "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage2_batch3_fe"
+Copy-Item "$bak\*" "C:\Project\Plasvora_app\" -Recurse -Force
+```
+
+
+---
+
+## 33. Backup Perbaikan Code Review Stage 2 Batch 3 (Origin Pair Strictness & AddressViewModel Refresh Resilience)
+
+**Tanggal**: 22 November 2026
+**Tujuan**:
+1. Memperketat validasi pasangan `originDestinationId` / `originLabel` di `lib/repositories/material_repository.dart` (dan meneruskan `ArgumentError` di `lib/viewmodels/marketplace_viewmodel.dart`) agar half-pair, label whitespace-only, ID `<= 0`, serta konflik `clearOrigin: true` dengan origin baru selalu melempar `ArgumentError` sebelum request HTTP dikirim.
+2. Memisahkan penanganan error mutasi dan refresh pasca-mutasi (`getAddresses()`) pada `lib/viewmodels/address_viewmodel.dart` agar mutasi yang sukses di backend tidak keliru dilaporkan gagal jika refresh gagal, serta mencegah `loadAddresses()` usang menimpa data mutasi terbaru.
+3. Memperbarui dan menambah unit tests pada `test/stage3_data_layer_test.dart` untuk seluruh kasus validasi origin ketat dan ketahanan refresh pasca-mutasi.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage2_batch3_review_fix_fe\`
+
+### File yang Di-backup Sebelum Diubah:
+1. `lib/repositories/material_repository.dart`
+2. `lib/viewmodels/marketplace_viewmodel.dart`
+3. `lib/viewmodels/address_viewmodel.dart`
+4. `test/stage3_data_layer_test.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+$bak = "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage2_batch3_review_fix_fe"
+Copy-Item "$bak\*" "C:\Project\Plasvora_app\" -Recurse -Force
+```
+
+
+---
+
+## 34. Backup Stage 2 Batch 4 — Flutter UI & Shipping Integration
+
+**Tanggal**: 22 November 2026
+**Tujuan**:
+1. Menambahkan `lib/core/widgets/destination_picker_sheet.dart` sebagai pemilih destinasi domestik reusable (debounce 400ms, minimal 2 karakter, stale-response guard, loading/empty/error/retry).
+2. Menambahkan Buku Alamat (`lib/views/address/address_list_screen.dart`) dan Form Alamat (`lib/views/address/address_form_screen.dart`) serta memperluas `AddressViewModel` (`fieldErrors`) untuk menampilkan error validasi backend per field.
+3. Menambahkan akses `Kelola Alamat Pengiriman` pada modal Profil Akun di `lib/views/home/home_screen.dart`.
+4. Memperluas `lib/views/marketplace/create_material_listing_screen.dart` dengan pemilihan lokasi asal pengiriman (wajib pada mode create, kompatibel listing lama null-origin + `clearOrigin: true` pada mode edit, preservasi prefill AI Analysis & gambar existing, serta penanganan `ArgumentError` lokal sebagai feedback validasi UI).
+5. Menambahkan tombol `Edit Listing` (khusus pemilik) dan panel Estimasi Ongkos Kirim eksplisit (`Cek Ongkir`) pada `lib/views/marketplace/material_detail_screen.dart` dengan penanganan kepemilikan & tamu.
+6. Menghubungkan injeksi dependensi konstruktor (`AddressViewModel`, `ShippingRepository`) lintas `MainNavigationScreen`, `HomeScreen`, `MarketplaceScreen`, `MatchingResultsScreen`, `MaterialRequestDetailScreen`, `AnalysisScreen`, `AnalysisResultScreen`, dan `ActivityScreen`.
+7. Menambahkan suite widget test `test/stage4_shipping_ui_test.dart`.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage2_batch4_fe\`
+
+### File yang Di-backup Sebelum Diubah:
+1. `lib/viewmodels/address_viewmodel.dart`
+2. `lib/views/main_navigation_screen.dart`
+3. `lib/views/home/home_screen.dart`
+4. `lib/views/marketplace/create_material_listing_screen.dart`
+5. `lib/views/marketplace/material_detail_screen.dart`
+6. `lib/views/marketplace/marketplace_screen.dart`
+7. `lib/views/matching/matching_results_screen.dart`
+8. `lib/views/material_request/material_request_detail_screen.dart`
+9. `lib/views/analysis/analysis_screen.dart`
+10. `lib/views/analysis/analysis_result_screen.dart`
+11. `lib/views/activity/activity_screen.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+$bak = "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage2_batch4_fe"
+Copy-Item "$bak\*" "C:\Project\Plasvora_app\" -Recurse -Force
+```
+
+
+---
+
+## 35. Backup Perbaikan Stage 4 Test Fixture (ImpactSummary Constructor Mismatch)
+
+**Tanggal**: 22 November 2026
+**Tujuan**:
+Memperbaiki konstruktor `ImpactSummary` pada `_FakeMaterialRepository.getImpactSummary()` di `test/stage4_shipping_ui_test.dart` (menghapus `const` yang tidak valid serta mengganti 4 parameter lama dengan 8 parameter wajib sesuai kontrak produksi `lib/models/impact_summary.dart`). Tidak ada perubahan pada model produksi.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage2_batch4_impact_summary_fix\`
+
+### File yang Di-backup Sebelum Diubah:
+1. `test/stage4_shipping_ui_test.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage2_batch4_impact_summary_fix\test\stage4_shipping_ui_test.dart" "C:\Project\Plasvora_app\test\stage4_shipping_ui_test.dart" -Force
+```
+
+
+---
+
+## 36. Backup Perbaikan Stage 4 Widget Test (Asset Fixture, Viewport Scroll Visibility, & Multipart Async I/O)
+
+**Tanggal**: 22 November 2026
+**Tujuan**:
+1. Mengganti fixture asset tidak valid `'assets/images/plastic_pet.png'` dengan konstanta asset resmi `AppAssets.petFlakes` (`assets/images/pet_flakes.jpg`) pada `test/stage4_shipping_ui_test.dart`.
+2. Memperbaiki helper `_scrollTo` / `_scrollToAndTap` agar memanggil `tester.ensureVisible(finder)` sehingga tombol di dalam `SingleChildScrollView` / `ListView` (seperti `Simpan Perubahan` dan `Cek Ongkir`) benar-benar digulir ke dalam viewport 800×600 sebelum di-tap.
+3. Memperbaiki test multipart image replacement agar tidak deadlock di zona `FakeAsync` (menulis/menghapus temp file secara sinkron, mengganti `imageUrl` dummy dengan `localAsset: AppAssets.petFlakes` agar `Image.network` tidak membuat `HttpClient`, serta menggunakan `tester.runAsync` untuk menyelesaikan `dart:io` file I/O milik `ApiClient.postMultipart` sebelum `pumpAndSettle`).
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage2_batch4_test_fixes\`
+
+### File yang Di-backup Sebelum Diubah:
+1. `test/stage4_shipping_ui_test.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage2_batch4_test_fixes\test\stage4_shipping_ui_test.dart" "C:\Project\Plasvora_app\test\stage4_shipping_ui_test.dart" -Force
+```
+
+
+---
+
+## 37. Backup Perbaikan Putaran 2 Stage 4 Widget Tests (EditableText Scroll-Back & Multipart FakeAsync Interleaving)
+
+**Tanggal**: 22 November 2026
+**Tujuan**:
+1. Menyelesaikan timer internal `EditableText` (`_showCaretOnScreen`) di `_ensureAndEnterText()` melalui `pumpAndSettle()` setelah `enterText()` serta memverifikasi/menggulir langsung `Scrollable` ancestor di `_scrollTo()`/`_scrollToAndTap()` agar `Simpan Perubahan` tidak terdorong keluar viewport 800×600 sebelum di-tap.
+2. Memperbaiki deadlock zona `FakeAsync` vs `dart:io` pada test multipart image replacement (`ApiClient.postMultipart` → `MultipartFile.fromPath` → `MockClient.streaming`) dengan menginterleave `tester.runAsync(10ms)` dan `tester.pump()`, menggunakan direktori/berkas temporer unik per test, mem-pop `CreateMaterialListingScreen` ke route induk agar `Image.file` & spinner terlepas sebelum `tempDir.deleteSync(recursive: true)`, serta menghindari `pumpAndSettle` selama spinner aktif.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage2_batch4_round2_fixes\`
+
+### File yang Di-backup Sebelum Diubah:
+1. `test/stage4_shipping_ui_test.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage2_batch4_round2_fixes\test\stage4_shipping_ui_test.dart" "C:\Project\Plasvora_app\test\stage4_shipping_ui_test.dart" -Force
+```
+
+
+---
+
+## 38. Backup Perbaikan Final Multipart Saving-State Lifecycle, Route Pop Pumping, & GoogleFonts Test Isolation
+
+**Tanggal**: 22 November 2026
+**Tujuan**:
+1. Mereset `_isSubmitting = false` pada cabang sukses create & edit di `lib/views/marketplace/create_material_listing_screen.dart` sebelum `Navigator.of(context).pop(...)` agar spinner tombol submit berhenti segera setelah penyimpanan berhasil (tidak terus berputar sepanjang animasi pop 300ms).
+2. Memperbarui test multipart pada `test/stage4_shipping_ui_test.dart` dengan sinyal penyelesaian eksplisit (`requestStreamConsumed`, `responseReturned`, `!marketVm.isSaving`, `updatedResult != null`) dan 3 tahap bounded `pump()` (`pump()` → `pump(350ms)` → `pump()`) untuk menyelesaikan animasi reverse `MaterialPageRoute` secara deterministik sebelum memeriksa penghapusan `CreateMaterialListingScreen` dan `CircularProgressIndicator`.
+3. Menonaktifkan runtime fetching `GoogleFonts.config.allowRuntimeFetching = false` di `setUpAll` (dipulihkan di `tearDownAll`) pada `test/stage4_shipping_ui_test.dart` agar widget test tidak membuat `HttpClient` ke `fonts.gstatic.com`.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage2_batch4_round3_fixes\`
+
+### File yang Di-backup Sebelum Diubah:
+1. `lib/views/marketplace/create_material_listing_screen.dart`
+2. `test/stage4_shipping_ui_test.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+$bak = "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage2_batch4_round3_fixes"
+Copy-Item "$bak\*" "C:\Project\Plasvora_app\" -Recurse -Force
+```
+
+
+---
+
+## 39. Backup Perbaikan Putaran 4 Stage 4 (Navigator Route Completion Signal & Bundling Lokal Plus Jakarta Sans)
+
+**Tanggal**: 22 November 2026
+**Tujuan**:
+1. Mengganti asumsi durasi tunggal 350ms pada test multipart `test/stage4_shipping_ui_test.dart` dengan sinyal deterministik `editRoute.completed` + verifikasi `Future` dari `Navigator.push` (`pushFuture`) sehingga penghapusan `CreateMaterialListingScreen` dan `CircularProgressIndicator` terverifikasi tepat setelah transisi reverse route selesai.
+2. Membundel 4 bobot resmi Google Fonts `Plus Jakarta Sans` yang digunakan aplikasi (`Regular` 400, `Medium` 500, `SemiBold` 600, `Bold` 700 — terverifikasi SHA-256 & panjang byte sesuai deskriptor `google_fonts 9.0.0`) beserta lisensi resmi `OFL.txt` (SIL Open Font License 1.1) di `assets/fonts/` dan mendeklarasikan `- assets/fonts/` pada `pubspec.yaml`.
+3. Menambahkan verifikasi pemuatan lokal 4 bobot `PlusJakartaSans` dengan `GoogleFonts.config.allowRuntimeFetching = false` (dipulihkan di `tearDownAll`) tanpa request HTTP ke `fonts.gstatic.com`.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage2_batch4_round4_fixes\`
+
+### File yang Di-backup Sebelum Diubah:
+1. `pubspec.yaml`
+2. `test/stage4_shipping_ui_test.dart`
+
+### File Baru Ditambahkan:
+1. `assets/fonts/PlusJakartaSans-Regular.ttf`
+2. `assets/fonts/PlusJakartaSans-Medium.ttf`
+3. `assets/fonts/PlusJakartaSans-SemiBold.ttf`
+4. `assets/fonts/PlusJakartaSans-Bold.ttf`
+5. `assets/fonts/OFL.txt`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+$bak = "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage2_batch4_round4_fixes"
+Copy-Item "$bak\*" "C:\Project\Plasvora_app\" -Recurse -Force
+```
+
+
+---
+
+## 40. Backup Perbaikan Lifecycle Logout Modal Profil & Keamanan Isolasi Sesi Pengguna
+
+**Tanggal**: 22 November 2026
+**Tujuan**:
+1. Memisahkan konten modal Profil Akun pada `lib/views/home/home_screen.dart` menjadi `StatefulWidget` privat (`_ProfileAccountSheet`) agar `TextEditingController` dimiliki dan dibuang hanya pada `State.dispose()` (menghapus `.whenComplete(phoneController.dispose)` yang prematur).
+2. Mengamankan urutan transisi keluar dan navigasi Buku Alamat menggunakan `TransitionRoute.completed` dari `ModalRoute.of(...)` sehingga `ModalBottomSheetRoute` benar-benar selesai di-unmount sebelum `AuthViewModel.logout()` atau `Navigator.push(AddressListScreen)` dijalankan.
+3. Memperkuat `PlasvoraApp` (`lib/main.dart`) dan `AuthViewModel` (`lib/viewmodels/auth_viewmodel.dart`) agar `MainNavigationScreen` tidak dilepas prematur pada `AuthState.loading` selama proses logout berlangsung serta menyediakan callback `onSessionCleared`.
+4. Menambahkan `AddressViewModel.clearUserData()` (`lib/viewmodels/address_viewmodel.dart`) dengan increment `_stateVersion` untuk mengisolasi cache alamat antar-akun saat logout / sesi dicabut dan mencegah respons async usang memulihkan data akun sebelumnya.
+5. Mengamankan pembersihan token lokal pada `ApiAuthRepository.logout()` (`lib/repositories/auth_repository.dart`) dan `ApiClient.post()` (`lib/core/network/api_client.dart`) agar token lokal dihapus terlebih dahulu sebelum revokasi server-side best-effort (dengan timeout 5 detik).
+6. Menambahkan regression widget & unit tests pada `test/profile_logout_security_test.dart`.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_logout_lifecycle_session_security\`
+
+### File yang Di-backup Sebelum Diubah:
+1. `lib/views/home/home_screen.dart`
+2. `lib/main.dart`
+3. `lib/viewmodels/auth_viewmodel.dart`
+4. `lib/viewmodels/address_viewmodel.dart`
+5. `lib/repositories/auth_repository.dart`
+6. `lib/core/network/api_client.dart`
+
+### File Baru Ditambahkan:
+1. `test/profile_logout_security_test.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+$bak = "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_logout_lifecycle_session_security"
+Copy-Item "$bak\*" "C:\Project\Plasvora_app\" -Recurse -Force
+```
+
+
+---
+
+## 41. Backup Perbaikan Null-Aware Access `activeRoute?.completed` di `home_screen.dart`
+
+**Tanggal**: 22 November 2026
+**Tujuan**:
+Memperbaiki 2 error `flutter analyze` pada `lib/views/home/home_screen.dart` (`_handleOpenAddresses` dan `_handleLogout`) dengan mengganti pengecekan `activeRoute is TransitionRoute<dynamic> ? activeRoute.completed : null` menjadi akses null-aware langsung `activeRoute?.completed` sesuai tipe `ModalRoute<Object?>?` (yang merupakan subkelas `TransitionRoute`).
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_home_screen_completed_null_aware\`
+
+### File yang Di-backup Sebelum Diubah:
+1. `lib/views/home/home_screen.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_home_screen_completed_null_aware\lib\views\home\home_screen.dart" "C:\Project\Plasvora_app\lib\views\home\home_screen.dart" -Force
+```
+
+
+---
+
+## 42. Backup Perbaikan Finder Tombol Back pada Test B (`profile_logout_security_test.dart`)
+
+**Tanggal**: 22 November 2026
+**Tujuan**:
+Mengganti `tester.pageBack()` pada Test B di `test/profile_logout_security_test.dart` dengan interaksi langsung pada tombol kembali aktual `IconButton(icon: Icon(Icons.arrow_back))` di dalam `PlasvoraHeader` milik `AddressListScreen`, karena `PlasvoraHeader` menggunakan tombol kembali kustom (bukan `BackButton` dengan tooltip `'Back'` atau `CupertinoNavigationBarBackButton`). Tidak ada perubahan pada kode produksi.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_test_b_back_button_fix\`
+
+### File yang Di-backup Sebelum Diubah:
+1. `test/profile_logout_security_test.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+Copy-Item "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_test_b_back_button_fix\test\profile_logout_security_test.dart" "C:\Project\Plasvora_app\test\profile_logout_security_test.dart" -Force
+```
+
+
+---
+
+## 43. Backup Stage 3 — Flutter Transaction Experience (Checkout, Midtrans Snap Redirect, Order Management & Seller Fulfillment)
+
+**Tanggal**: 22 November 2026  
+**Fitur**: Stage 3 — Flutter Transaction Experience (Data Layer, Checkout, Midtrans Payment Launch & Resume Sync, Buyer/Seller Order Management, Session Isolation)  
+**Tujuan**:
+1. Menambahkan kontrak endpoint `/api/orders*` di `lib/core/network/api_config.dart` serta propagasi `ApiException.data` pada `lib/core/network/api_client.dart` untuk dukungan `reconciliation_required` / `order_id`.
+2. Membuat data layer Stage 3 (`lib/models/order_item.dart`, `lib/repositories/order_repository.dart`, `lib/viewmodels/order_viewmodel.dart`, `lib/core/utils/payment_launcher.dart`) sesuai arsitektur MVVM (`ChangeNotifier` + `ListenableBuilder`) dan isolasi sesi `OrderViewModel.clearUserData()` dengan `_sessionVersion`.
+3. Menyambungkan shared `OrderViewModel` via constructor injection di `lib/main.dart`, `lib/views/main_navigation_screen.dart`, `lib/views/home/home_screen.dart`, `lib/views/marketplace/marketplace_screen.dart`, `lib/views/marketplace/material_detail_screen.dart`, dan `lib/views/activity/activity_screen.dart`, serta menggabungkan `orderViewModel.clearUserData()` bersama `addressViewModel.clearUserData()` pada `AuthViewModel.onSessionCleared`.
+4. Membuat UI transaksi `CheckoutScreen`, `OrderListScreen`, dan `OrderDetailScreen` dengan validasi host resmi Midtrans Snap (`app.sandbox.midtrans.com` / `app.midtrans.com`), sinkronisasi `refresh-payment` saat app resume, privasi alamat pembeli sebelum bayar, form input resi penjual, konfirmasi penerimaan pembeli, dan navigasi `Pesanan Saya` yang lifecycle-safe (`TransitionRoute.completed`).
+5. Memperluas `lib/models/activity_item.dart` untuk ikon/status aktivitas `'order'` dan menambahkan 6 file automated tests (`test/order_model_test.dart`, `test/order_repository_test.dart`, `test/order_viewmodel_test.dart`, `test/checkout_screen_test.dart`, `test/order_list_screen_test.dart`, `test/order_detail_screen_test.dart`).
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage3_flutter_transaction_fe\`
+
+### File Eksisting yang Di-backup & Dimodifikasi:
+1. `lib/core/network/api_config.dart`
+2. `lib/core/network/api_client.dart`
+3. `lib/models/activity_item.dart`
+4. `lib/main.dart`
+5. `lib/views/main_navigation_screen.dart`
+6. `lib/views/home/home_screen.dart`
+7. `lib/views/marketplace/marketplace_screen.dart`
+8. `lib/views/marketplace/material_detail_screen.dart`
+9. `lib/views/activity/activity_screen.dart`
+
+### File Baru yang Dibuat:
+1. `lib/core/utils/payment_launcher.dart`
+2. `lib/models/order_item.dart`
+3. `lib/repositories/order_repository.dart`
+4. `lib/viewmodels/order_viewmodel.dart`
+5. `lib/views/checkout/checkout_screen.dart`
+6. `lib/views/orders/order_list_screen.dart`
+7. `lib/views/orders/order_detail_screen.dart`
+8. `test/order_model_test.dart`
+9. `test/order_repository_test.dart`
+10. `test/order_viewmodel_test.dart`
+11. `test/checkout_screen_test.dart`
+12. `test/order_list_screen_test.dart`
+13. `test/order_detail_screen_test.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+$bak = "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage3_flutter_transaction_fe"
+Copy-Item "$bak\*" "C:\Project\Plasvora_app\" -Recurse -Force
+```
+
+
+
+---
+
+## 44. Backup Perbaikan Comprehensive Debugging Stage 3 — Flutter Transaction Experience (Package Imports, PlasvoraHeader Parameter, Lifecycle Safety, & Test Interface Alignment)
+
+**Tanggal**: 22 November 2026  
+**Fitur**: Stage 3 — Flutter Transaction Experience (Comprehensive Debugging & Static/Test Alignment Fix)  
+**Tujuan**:
+1. Memperbaiki parameter konstruktor `PlasvoraHeader` (`showBackButton: true` -> `showBack: true`) pada `CheckoutScreen`, `OrderListScreen`, dan `OrderDetailScreen` agar sesuai definisi aktual `lib/core/widgets/plasvora_header.dart`.
+2. Mengamankan pemanggilan `notifyListeners()` selama `initState()`: memindahkan `orderViewModel.clearErrors()` di `CheckoutScreen.initState()` ke dalam `addPostFrameCallback`, serta menambahkan parameter `{bool notify = true}` pada `OrderViewModel.setCurrentOrderPreview(...)` dan memanggil `notify: false` di `OrderDetailScreen.initState()`.
+3. Menambahkan pembersihan defensif `orderViewModel?.clearUserData()` di `HomeScreen._logoutAfterModalClose` mendampingi `onSessionCleared` di `lib/main.dart`.
+4. Memperbaiki prefix import paket pada seluruh 6 file test Stage 3 (`package:plasvora_app/...` -> `package:plasvora/...` sesuai `name: plasvora` di `pubspec.yaml`), yang menjadi akar penyebab ratusan error `Undefined name` / `isn't a type`.
+5. Menyelaraskan stub dan interaksi widget test di `test/checkout_screen_test.dart`, `test/order_list_screen_test.dart`, dan `test/order_detail_screen_test.dart` dengan kontrak produksi aktual (`UserProfile` di `models/user_profile.dart`, interface `AuthRepository` lengkap, `MockMaterialRepository.getMaterials(...)` dengan `simulateDelay: false`, finder avatar `PlasvoraHeader`, `ElevatedButton.icon` ancestor finder, `GoogleFonts.config.allowRuntimeFetching = false`, `ValueKey` unik per skenario, `scrollUntilVisible`/`ensureVisible`, dan uji blokir double-tap).
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage3_flutter_debug_fix_fe\`
+
+### File yang Di-backup & Dimodifikasi:
+1. `lib/viewmodels/order_viewmodel.dart`
+2. `lib/views/checkout/checkout_screen.dart`
+3. `lib/views/orders/order_list_screen.dart`
+4. `lib/views/orders/order_detail_screen.dart`
+5. `lib/views/home/home_screen.dart`
+6. `test/order_model_test.dart`
+7. `test/order_repository_test.dart`
+8. `test/order_viewmodel_test.dart`
+9. `test/checkout_screen_test.dart`
+10. `test/order_list_screen_test.dart`
+11. `test/order_detail_screen_test.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+$bak = "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage3_flutter_debug_fix_fe"
+Copy-Item "$bak\*" "C:\Project\Plasvora_app\" -Recurse -Force
+```
+
+
+
+---
+
+## 45. Backup Perbaikan Targeted Widget Test Scrolling Stage 3 (`checkout_screen_test.dart` & `order_detail_screen_test.dart`)
+
+**Tanggal**: 22 November 2026  
+**Fitur**: Stage 3 — Targeted Widget Test Fix (Scrollable Disambiguation & Post-`ensureVisible` Layout Settling)  
+**Tujuan**:
+1. Memperbaiki kegagalan `Bad state: Too many elements` pada `tester.scrollUntilVisible(...)` di `test/checkout_screen_test.dart` akibat kemunculan `Scrollable` internal milik `TextField` catatan pembeli (`maxLines: 2`) di dalam `ListView`, dengan menargetkan secara eksplisit `Scrollable` utama milik `ListView` (`find.descendant(of: find.byType(ListView), matching: find.byType(Scrollable)).first`), menambahkan `await tester.pumpAndSettle()` setelah `ensureVisible`, serta menghapus `warnIfMissed: false` pada verifikasi double-tap tombol `bottomNavigationBar`.
+2. Memperbaiki kegagalan `Offset(400.0, 680.0) is outside the bounds Size(800.0, 600.0)` pada `test/order_detail_screen_test.dart` dengan menargetkan `Scrollable` milik `ListView` secara eksplisit pada `scrollUntilVisible(shipBtn, ...)` dan memanggil `await tester.pumpAndSettle()` setelah setiap `tester.ensureVisible(...)` agar layout `RenderBox` tombol `Input Resi & Kirim Pesanan` dan field `Nomor Resi *` selesai diperbarui masuk ke dalam viewport sebelum `tap`/`enterText`.
+3. Tidak ada perubahan pada kode produksi Flutter maupun backend Laravel.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage3_widget_test_scroll_fix\`
+
+### File yang Di-backup & Dimodifikasi:
+1. `test/checkout_screen_test.dart`
+2. `test/order_detail_screen_test.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+$bak = "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage3_widget_test_scroll_fix"
+Copy-Item "$bak\*" "C:\Project\Plasvora_app\" -Recurse -Force
+```
+
+
+
+---
+
+## 46. Backup Perbaikan CheckoutScreen Blank pada Perangkat Android Fisik (`AppTheme.lightTheme` Infinite-Width `ElevatedButton` Layout Crash + Address Error & Empty Courier States)
+
+**Tanggal**: 22 November 2026  
+**Fitur**: Stage 3 — CheckoutScreen Runtime Layout Fix & Complete Error/Empty States  
+**Tujuan**:
+1. Memperbaiki akar penyebab layar `CheckoutScreen` tampil kosong di bawah `PlasvoraHeader` pada perangkat Android fisik: `AppTheme.lightTheme.elevatedButtonTheme` menetapkan `minimumSize: const Size.fromHeight(50)` (`width: double.infinity`), sehingga `ElevatedButton` (`Buat Pesanan & Bayar`) di dalam `Row` milik `CheckoutScreen.bottomNavigationBar` yang tidak meng-override `minimumSize` memicu `BoxConstraints forces an infinite width` saat `Scaffold` melayout `bottomNavigationBar` (sebelum `body`), menggagalkan layout seluruh `bottomNavigationBar` dan `body`. Ditambahkan `minimumSize: const Size(140, 48)` pada tombol bottom bar serta `maxLines: 1, overflow: TextOverflow.ellipsis` pada teks total pembayaran dan `minimumSize: const Size(0, 48)` pada tombol `Tambah Alamat Pengiriman`.
+2. Menambahkan state error pemuatan alamat (`addrVm.errorMessage != null && addrVm.addresses.isEmpty`) dengan tombol `Coba Lagi` di `_buildAddressCard` serta aksi `Coba Hitung Lagi` & `Ganti Alamat` pada state opsi pengiriman kosong di `_buildCourierSelectionCard`.
+3. Menambahkan `theme: AppTheme.lightTheme` dan test regresi viewport HP (`360x800`) pada `test/checkout_screen_test.dart` untuk memastikan bug tema ini tidak pernah terulang.
+4. Tidak ada perubahan pada backend Laravel, `.env`, migrasi database, repository, maupun ViewModel.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage3_checkout_blank_screen_fix\`
+
+### File yang Di-backup & Dimodifikasi:
+1. `lib/views/checkout/checkout_screen.dart`
+2. `test/checkout_screen_test.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+$bak = "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage3_checkout_blank_screen_fix"
+Copy-Item "$bak\*" "C:\Project\Plasvora_app\" -Recurse -Force
+```

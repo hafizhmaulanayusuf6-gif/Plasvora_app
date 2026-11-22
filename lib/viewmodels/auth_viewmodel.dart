@@ -8,6 +8,7 @@ enum AuthState { initial, loading, authenticated, unauthenticated, error, connec
 
 class AuthViewModel extends ChangeNotifier {
   final AuthRepository authRepository;
+  final VoidCallback? onSessionCleared;
 
   AuthState _state = AuthState.initial;
   AuthState get state => _state;
@@ -20,15 +21,20 @@ class AuthViewModel extends ChangeNotifier {
 
   bool get isAuthenticated => _state == AuthState.authenticated;
   bool get isLoading => _state == AuthState.loading;
+  bool get isRestoringSession => _isRestoring;
   bool get hasConnectionError => _state == AuthState.connectionError;
 
   bool _isUpdatingProfile = false;
   bool get isUpdatingProfile => _isUpdatingProfile;
 
   bool _isRestoring = false;
+  bool _isLoggingOut = false;
   Future<void>? _activeRestoreFuture;
 
-  AuthViewModel({required this.authRepository}) {
+  AuthViewModel({
+    required this.authRepository,
+    this.onSessionCleared,
+  }) {
     checkAuthSession();
   }
 
@@ -55,12 +61,14 @@ class AuthViewModel extends ChangeNotifier {
       } else {
         _currentUser = null;
         _state = AuthState.unauthenticated;
+        onSessionCleared?.call();
       }
     } on ApiException catch (e) {
       if (e.statusCode == 401) {
         // HTTP 401 Unauthorized: Sesi tidak sah / token dicabut
         _currentUser = null;
         _state = AuthState.unauthenticated;
+        onSessionCleared?.call();
       } else if (e.statusCode == 403) {
         // HTTP 403 Forbidden: Hak akses ditolak, tetapi token TETAP DIPERTAHANKAN
         // Jangan logout otomatis.
@@ -177,14 +185,21 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    if (_isLoggingOut) return;
+
+    _isLoggingOut = true;
     _state = AuthState.loading;
     notifyListeners();
 
     try {
+      onSessionCleared?.call();
       await authRepository.logout();
     } finally {
+      onSessionCleared?.call();
       _currentUser = null;
+      _errorMessage = null;
       _state = AuthState.unauthenticated;
+      _isLoggingOut = false;
       notifyListeners();
     }
   }

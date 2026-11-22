@@ -21,6 +21,14 @@ class ApiConfig {
   static const String activities = '$baseUrl/activities';
   static const String analyses = '$baseUrl/analyses';
 
+  // Addresses & Shipping (Stage 2)
+  static const String addresses = '$baseUrl/addresses';
+  static const String shippingDestinations = '$baseUrl/shipping/destinations';
+  static const String shippingEstimate = '$baseUrl/shipping/estimate';
+
+  // Orders & Transactions (Stage 3)
+  static const String orders = '$baseUrl/orders';
+
   static String materialDetail(int id) => '$baseUrl/materials/$id';
   static String materialMatches(int id) => '$baseUrl/materials/$id/matches';
   static String materialRequestDetail(int id) => '$baseUrl/material-requests/$id';
@@ -28,5 +36,12 @@ class ApiConfig {
   static String handoverRequestDetail(int id) => '$baseUrl/handover-requests/$id';
   static String updateHandoverStatus(int id) => '$baseUrl/handover-requests/$id/status';
   static String analysisDetail(int id) => '$baseUrl/analyses/$id';
+  static String addressDetail(int id) => '$baseUrl/addresses/$id';
+  static String orderDetail(int id) => '$baseUrl/orders/$id';
+  static String orderCancel(int id) => '$baseUrl/orders/$id/cancel';
+  static String orderRetryPayment(int id) => '$baseUrl/orders/$id/retry-payment';
+  static String orderRefreshPayment(int id) => '$baseUrl/orders/$id/refresh-payment';
+  static String orderShip(int id) => '$baseUrl/orders/$id/ship';
+  static String orderConfirmDelivery(int id) => '$baseUrl/orders/$id/confirm-delivery';
 }
 

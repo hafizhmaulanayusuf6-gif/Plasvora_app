@@ -6,6 +6,7 @@ import '../../core/constants/app_assets.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/widgets/plasvora_header.dart';
+import '../../repositories/shipping_repository.dart';
 import '../../viewmodels/analysis_viewmodel.dart';
 import '../../viewmodels/marketplace_viewmodel.dart';
 import '../../viewmodels/navigation_viewmodel.dart';
@@ -15,12 +16,14 @@ class AnalysisScreen extends StatefulWidget {
   final AnalysisViewModel viewModel;
   final NavigationViewModel navigationViewModel;
   final MarketplaceViewModel? marketplaceViewModel;
+  final ShippingRepository? shippingRepository;
 
   const AnalysisScreen({
     super.key,
     required this.viewModel,
     required this.navigationViewModel,
     this.marketplaceViewModel,
+    this.shippingRepository,
   });
 
   @override
@@ -727,6 +730,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                             result: result,
                             navigationViewModel: widget.navigationViewModel,
                             marketplaceViewModel: widget.marketplaceViewModel,
+                            shippingRepository: widget.shippingRepository,
                           ),
                         ),
                       );

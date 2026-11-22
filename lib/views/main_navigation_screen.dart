@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../core/widgets/app_bottom_nav.dart';
+import '../repositories/shipping_repository.dart';
 import '../viewmodels/activity_viewmodel.dart';
+import '../viewmodels/address_viewmodel.dart';
 import '../viewmodels/analysis_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../viewmodels/home_viewmodel.dart';
@@ -9,6 +11,7 @@ import '../viewmodels/marketplace_viewmodel.dart';
 import '../viewmodels/matching_viewmodel.dart';
 import '../viewmodels/material_request_viewmodel.dart';
 import '../viewmodels/navigation_viewmodel.dart';
+import '../viewmodels/order_viewmodel.dart';
 import 'activity/activity_screen.dart';
 import 'analysis/analysis_screen.dart';
 import 'home/home_screen.dart';
@@ -23,6 +26,9 @@ class MainNavigationScreen extends StatelessWidget {
   final ActivityViewModel? activityViewModel;
   final MaterialRequestViewModel? materialRequestViewModel;
   final MatchingViewModel? matchingViewModel;
+  final AddressViewModel? addressViewModel;
+  final ShippingRepository? shippingRepository;
+  final OrderViewModel? orderViewModel;
 
   const MainNavigationScreen({
     super.key,
@@ -34,6 +40,9 @@ class MainNavigationScreen extends StatelessWidget {
     this.activityViewModel,
     this.materialRequestViewModel,
     this.matchingViewModel,
+    this.addressViewModel,
+    this.shippingRepository,
+    this.orderViewModel,
   });
 
   @override
@@ -51,11 +60,15 @@ class MainNavigationScreen extends StatelessWidget {
                 viewModel: homeViewModel,
                 navigationViewModel: navigationViewModel,
                 authViewModel: authViewModel,
+                addressViewModel: addressViewModel,
+                shippingRepository: shippingRepository,
+                orderViewModel: orderViewModel,
               ),
               AnalysisScreen(
                 viewModel: analysisViewModel,
                 navigationViewModel: navigationViewModel,
                 marketplaceViewModel: marketplaceViewModel,
+                shippingRepository: shippingRepository,
               ),
               MarketplaceScreen(
                 viewModel: marketplaceViewModel,
@@ -63,11 +76,17 @@ class MainNavigationScreen extends StatelessWidget {
                 authViewModel: authViewModel,
                 materialRequestViewModel: materialRequestViewModel,
                 matchingViewModel: matchingViewModel,
+                addressViewModel: addressViewModel,
+                shippingRepository: shippingRepository,
+                orderViewModel: orderViewModel,
               ),
               ActivityScreen(
                 viewModel: activityViewModel,
                 marketplaceViewModel: marketplaceViewModel,
                 navigationViewModel: navigationViewModel,
+                shippingRepository: shippingRepository,
+                orderViewModel: orderViewModel,
+                authViewModel: authViewModel,
               ),
             ],
           ),

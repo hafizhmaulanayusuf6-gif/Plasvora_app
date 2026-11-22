@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../models/material_request_item.dart';
+import '../../repositories/shipping_repository.dart';
+import '../../viewmodels/address_viewmodel.dart';
+import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/marketplace_viewmodel.dart';
 import '../../viewmodels/matching_viewmodel.dart';
 import '../../viewmodels/material_request_viewmodel.dart';
@@ -13,6 +16,9 @@ class MaterialRequestDetailScreen extends StatefulWidget {
   final MaterialRequestViewModel viewModel;
   final MatchingViewModel matchingViewModel;
   final MarketplaceViewModel marketplaceViewModel;
+  final AuthViewModel? authViewModel;
+  final AddressViewModel? addressViewModel;
+  final ShippingRepository? shippingRepository;
 
   const MaterialRequestDetailScreen({
     super.key,
@@ -21,6 +27,9 @@ class MaterialRequestDetailScreen extends StatefulWidget {
     required this.viewModel,
     required this.matchingViewModel,
     required this.marketplaceViewModel,
+    this.authViewModel,
+    this.addressViewModel,
+    this.shippingRepository,
   });
 
   @override
@@ -322,6 +331,9 @@ class _MaterialRequestDetailScreenState
                       builder: (_) => MatchingResultsScreen(
                         matchingViewModel: widget.matchingViewModel,
                         marketplaceViewModel: widget.marketplaceViewModel,
+                        authViewModel: widget.authViewModel,
+                        addressViewModel: widget.addressViewModel,
+                        shippingRepository: widget.shippingRepository,
                         requestId: item.id,
                         title: 'Material Cocok untuk ${item.categoryLabel}',
                       ),

@@ -6,6 +6,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/widgets/plasvora_header.dart';
 import '../../models/plastic_analysis.dart';
+import '../../repositories/shipping_repository.dart';
 import '../../viewmodels/marketplace_viewmodel.dart';
 import '../../viewmodels/navigation_viewmodel.dart';
 import '../marketplace/create_material_listing_screen.dart';
@@ -14,12 +15,14 @@ class AnalysisResultScreen extends StatefulWidget {
   final PlasticAnalysisResult result;
   final NavigationViewModel navigationViewModel;
   final MarketplaceViewModel? marketplaceViewModel;
+  final ShippingRepository? shippingRepository;
 
   const AnalysisResultScreen({
     super.key,
     required this.result,
     required this.navigationViewModel,
     this.marketplaceViewModel,
+    this.shippingRepository,
   });
 
   @override
@@ -1527,6 +1530,7 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
                     builder: (_) => CreateMaterialListingScreen(
                       viewModel: widget.marketplaceViewModel!,
                       initialAnalysis: widget.result,
+                      shippingRepository: widget.shippingRepository,
                     ),
                   ),
                 );

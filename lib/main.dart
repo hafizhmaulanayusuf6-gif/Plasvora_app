@@ -5,11 +5,15 @@ import 'core/network/api_client.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'repositories/activity_repository.dart';
+import 'repositories/address_repository.dart';
 import 'repositories/analysis_repository.dart';
 import 'repositories/auth_repository.dart';
 import 'repositories/material_repository.dart';
+import 'repositories/order_repository.dart';
+import 'repositories/shipping_repository.dart';
 import 'repositories/transaction_repository.dart';
 import 'viewmodels/activity_viewmodel.dart';
+import 'viewmodels/address_viewmodel.dart';
 import 'viewmodels/analysis_viewmodel.dart';
 import 'viewmodels/auth_viewmodel.dart';
 import 'viewmodels/home_viewmodel.dart';
@@ -17,6 +21,7 @@ import 'viewmodels/marketplace_viewmodel.dart';
 import 'viewmodels/matching_viewmodel.dart';
 import 'viewmodels/material_request_viewmodel.dart';
 import 'viewmodels/navigation_viewmodel.dart';
+import 'viewmodels/order_viewmodel.dart';
 import 'views/auth/login_screen.dart';
 import 'views/main_navigation_screen.dart';
 
@@ -51,8 +56,32 @@ void main() async {
       ? ApiTransactionRepository(apiClient: apiClient)
       : MockTransactionRepository();
 
+  final AddressRepository addressRepository = useApiRepository
+      ? ApiAddressRepository(apiClient: apiClient)
+      : MockAddressRepository();
+
+  final ShippingRepository shippingRepository = useApiRepository
+      ? ApiShippingRepository(apiClient: apiClient)
+      : MockShippingRepository();
+
+  final OrderRepository orderRepository = useApiRepository
+      ? ApiOrderRepository(apiClient: apiClient)
+      : MockOrderRepository();
+
   final navigationViewModel = NavigationViewModel();
-  final authViewModel = AuthViewModel(authRepository: authRepository);
+  final addressViewModel = AddressViewModel(
+    addressRepository: addressRepository,
+  );
+  final orderViewModel = OrderViewModel(
+    orderRepository: orderRepository,
+  );
+  final authViewModel = AuthViewModel(
+    authRepository: authRepository,
+    onSessionCleared: () {
+      addressViewModel.clearUserData();
+      orderViewModel.clearUserData();
+    },
+  );
   final homeViewModel = HomeViewModel(materialRepository: materialRepository);
   final analysisViewModel = AnalysisViewModel(
     analysisRepository: analysisRepository,
@@ -80,6 +109,9 @@ void main() async {
       activityViewModel: activityViewModel,
       materialRequestViewModel: materialRequestViewModel,
       matchingViewModel: matchingViewModel,
+      addressViewModel: addressViewModel,
+      shippingRepository: shippingRepository,
+      orderViewModel: orderViewModel,
     ),
   );
 }
@@ -93,6 +125,9 @@ class PlasvoraApp extends StatelessWidget {
   final ActivityViewModel? activityViewModel;
   final MaterialRequestViewModel? materialRequestViewModel;
   final MatchingViewModel? matchingViewModel;
+  final AddressViewModel? addressViewModel;
+  final ShippingRepository? shippingRepository;
+  final OrderViewModel? orderViewModel;
 
   const PlasvoraApp({
     super.key,
@@ -104,6 +139,9 @@ class PlasvoraApp extends StatelessWidget {
     this.activityViewModel,
     this.materialRequestViewModel,
     this.matchingViewModel,
+    this.addressViewModel,
+    this.shippingRepository,
+    this.orderViewModel,
   });
 
   @override
@@ -127,6 +165,9 @@ class PlasvoraApp extends StatelessWidget {
         activityViewModel: activityViewModel,
         materialRequestViewModel: materialRequestViewModel,
         matchingViewModel: matchingViewModel,
+        addressViewModel: addressViewModel,
+        shippingRepository: shippingRepository,
+        orderViewModel: orderViewModel,
       );
     }
 
@@ -137,7 +178,7 @@ class PlasvoraApp extends StatelessWidget {
 
         // 1. Sedang memverifikasi sesi token saat aplikasi pertama kali dibuka
         if (state == AuthState.initial ||
-            (state == AuthState.loading && authViewModel!.currentUser == null)) {
+            (state == AuthState.loading && authViewModel!.isRestoringSession)) {
           return const Scaffold(
             backgroundColor: AppColors.background,
             body: Center(
@@ -330,8 +371,11 @@ class PlasvoraApp extends StatelessWidget {
           );
         }
 
-        // 4. Berhasil terautentikasi (sesi valid)
-        if (authViewModel!.isAuthenticated) {
+        // 4. Berhasil terautentikasi atau masih menyelesaikan proses logout
+        // Pertahankan pohon navigasi hingga logout benar-benar selesai dan
+        // berpindah ke AuthState.unauthenticated agar tidak memutus ancestor secara prematur.
+        if (authViewModel!.isAuthenticated ||
+            (state == AuthState.loading && authViewModel!.currentUser != null)) {
           return MainNavigationScreen(
             navigationViewModel: navigationViewModel,
             homeViewModel: homeViewModel,
@@ -341,6 +385,9 @@ class PlasvoraApp extends StatelessWidget {
             activityViewModel: activityViewModel,
             materialRequestViewModel: materialRequestViewModel,
             matchingViewModel: matchingViewModel,
+            addressViewModel: addressViewModel,
+            shippingRepository: shippingRepository,
+            orderViewModel: orderViewModel,
           );
         }
 

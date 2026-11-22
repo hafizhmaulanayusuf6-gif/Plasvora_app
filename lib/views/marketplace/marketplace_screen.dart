@@ -5,11 +5,14 @@ import '../../core/theme/app_typography.dart';
 import '../../core/widgets/plasvora_header.dart';
 import '../../models/material_listing.dart';
 import '../../models/material_request_item.dart';
+import '../../repositories/shipping_repository.dart';
+import '../../viewmodels/address_viewmodel.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/marketplace_viewmodel.dart';
 import '../../viewmodels/matching_viewmodel.dart';
 import '../../viewmodels/material_request_viewmodel.dart';
 import '../../viewmodels/navigation_viewmodel.dart';
+import '../../viewmodels/order_viewmodel.dart';
 import '../material_request/create_material_request_screen.dart';
 import '../material_request/material_request_detail_screen.dart';
 import '../matching/matching_results_screen.dart';
@@ -22,6 +25,9 @@ class MarketplaceScreen extends StatefulWidget {
   final AuthViewModel? authViewModel;
   final MaterialRequestViewModel? materialRequestViewModel;
   final MatchingViewModel? matchingViewModel;
+  final AddressViewModel? addressViewModel;
+  final ShippingRepository? shippingRepository;
+  final OrderViewModel? orderViewModel;
 
   const MarketplaceScreen({
     super.key,
@@ -30,6 +36,9 @@ class MarketplaceScreen extends StatefulWidget {
     this.authViewModel,
     this.materialRequestViewModel,
     this.matchingViewModel,
+    this.addressViewModel,
+    this.shippingRepository,
+    this.orderViewModel,
   });
 
   @override
@@ -571,6 +580,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     viewModel: widget.materialRequestViewModel!,
                     matchingViewModel: widget.matchingViewModel!,
                     marketplaceViewModel: widget.viewModel,
+                    authViewModel: widget.authViewModel,
+                    addressViewModel: widget.addressViewModel,
+                    shippingRepository: widget.shippingRepository,
                   ),
                 ),
               );
@@ -687,6 +699,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                             builder: (_) => MatchingResultsScreen(
                               matchingViewModel: widget.matchingViewModel!,
                               marketplaceViewModel: widget.viewModel,
+                              authViewModel: widget.authViewModel,
+                              addressViewModel: widget.addressViewModel,
+                              shippingRepository: widget.shippingRepository,
                               requestId: req.id,
                               title: 'Material Cocok: ${req.categoryLabel}',
                             ),
@@ -1107,6 +1122,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     viewModel: widget.viewModel,
                     authViewModel: widget.authViewModel,
                     matchingViewModel: widget.matchingViewModel,
+                    addressViewModel: widget.addressViewModel,
+                    shippingRepository: widget.shippingRepository,
+                    orderViewModel: widget.orderViewModel,
                   ),
                 ),
               );
@@ -1339,6 +1357,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             MaterialPageRoute(
               builder: (_) => CreateMaterialListingScreen(
                 viewModel: widget.viewModel,
+                shippingRepository: widget.shippingRepository,
               ),
             ),
           );

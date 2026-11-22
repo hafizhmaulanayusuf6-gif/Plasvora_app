@@ -146,12 +146,23 @@ class ApiAuthRepository implements AuthRepository {
 
   @override
   Future<void> logout() async {
+    // Ambil token ke memori lokal lalu hapus penyimpanan lokal terlebih dahulu
+    // agar sesi perangkat segera bersih meskipun proses terhenti atau jaringan gagal.
+    final token = await apiClient.getToken();
+    await apiClient.deleteToken();
+
+    if (token == null || token.isEmpty) return;
+
+    // Best-effort revokasi token di server dengan batas waktu singkat.
     try {
-      await apiClient.post(ApiConfig.logout, requiresAuth: true);
+      await apiClient.post(
+        ApiConfig.logout,
+        requiresAuth: false,
+        bearerTokenOverride: token,
+        timeout: const Duration(seconds: 5),
+      );
     } catch (_) {
-      // Abaikan jika token di server sudah invalid
-    } finally {
-      await apiClient.deleteToken();
+      // Abaikan kegagalan jaringan/server; token lokal sudah dihapus.
     }
   }
 

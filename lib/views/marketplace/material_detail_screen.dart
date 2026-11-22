@@ -1,14 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/network/api_client.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import '../../core/utils/payment_launcher.dart';
 import '../../core/utils/phone_utils.dart';
 import '../../models/material_listing.dart';
+import '../../models/shipping_destination.dart';
+import '../../models/user_address.dart';
+import '../../repositories/shipping_repository.dart';
+import '../../viewmodels/address_viewmodel.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/marketplace_viewmodel.dart';
 import '../../viewmodels/matching_viewmodel.dart';
+import '../../viewmodels/order_viewmodel.dart';
+import '../address/address_form_screen.dart';
+import '../address/address_list_screen.dart';
+import '../auth/login_screen.dart';
+import '../checkout/checkout_screen.dart';
 import '../matching/matching_results_screen.dart';
+import 'create_material_listing_screen.dart';
 
 class MaterialDetailScreen extends StatefulWidget {
   final int materialId;
@@ -16,6 +28,10 @@ class MaterialDetailScreen extends StatefulWidget {
   final MarketplaceViewModel viewModel;
   final AuthViewModel? authViewModel;
   final MatchingViewModel? matchingViewModel;
+  final AddressViewModel? addressViewModel;
+  final ShippingRepository? shippingRepository;
+  final OrderViewModel? orderViewModel;
+  final PaymentLauncher? paymentLauncher;
 
   const MaterialDetailScreen({
     super.key,
@@ -24,6 +40,10 @@ class MaterialDetailScreen extends StatefulWidget {
     required this.viewModel,
     this.authViewModel,
     this.matchingViewModel,
+    this.addressViewModel,
+    this.shippingRepository,
+    this.orderViewModel,
+    this.paymentLauncher,
   });
 
   @override
@@ -36,11 +56,79 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
   bool _isLaunchingWhatsApp = false;
   String? _errorMessage;
 
+  bool _isEstimating = false;
+  ShippingEstimateResult? _estimateResult;
+  String? _estimateError;
+  int? _lastObservedAddressId;
+  bool _hasTriggeredAddressLoad = false;
+  int _estimateRequestVersion = 0;
+
   @override
   void initState() {
     super.initState();
     _material = widget.initialMaterial;
+    _lastObservedAddressId = widget.addressViewModel?.selectedAddress?.id;
+    widget.addressViewModel?.addListener(_handleAddressStateChanged);
+    widget.authViewModel?.addListener(_handleAuthStateChanged);
     _fetchDetail();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _ensureBuyerAddressesLoaded();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    widget.addressViewModel?.removeListener(_handleAddressStateChanged);
+    widget.authViewModel?.removeListener(_handleAuthStateChanged);
+    super.dispose();
+  }
+
+  bool _isOwnListing(MaterialListing item) {
+    final isAuthenticated = widget.authViewModel?.isAuthenticated ?? false;
+    final currentUserId = widget.authViewModel?.currentUser?.id;
+    return isAuthenticated &&
+        currentUserId != null &&
+        currentUserId == item.ownerId;
+  }
+
+  void _handleAddressStateChanged() {
+    if (!mounted) return;
+    final nextId = widget.addressViewModel?.selectedAddress?.id;
+    if (nextId != _lastObservedAddressId) {
+      _lastObservedAddressId = nextId;
+      _estimateRequestVersion++;
+      setState(() {
+        _estimateResult = null;
+        _estimateError = null;
+        _isEstimating = false;
+      });
+    } else {
+      setState(() {});
+    }
+  }
+
+  void _handleAuthStateChanged() {
+    if (!mounted) return;
+    _ensureBuyerAddressesLoaded();
+    setState(() {});
+  }
+
+  void _ensureBuyerAddressesLoaded() {
+    final auth = widget.authViewModel;
+    final addressVm = widget.addressViewModel;
+    final item = _material;
+    if (auth == null || !auth.isAuthenticated) return;
+    if (addressVm == null || item == null) return;
+    if (_isOwnListing(item)) return;
+    if (item.originDestinationId == null) return;
+    if (_hasTriggeredAddressLoad) return;
+
+    _hasTriggeredAddressLoad = true;
+    if (addressVm.addresses.isEmpty && !addressVm.isLoading) {
+      addressVm.loadAddresses();
+    }
   }
 
   Future<void> _fetchDetail() async {
@@ -56,6 +144,7 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
           _material = detail;
           _isLoading = false;
         });
+        _ensureBuyerAddressesLoaded();
       }
     } catch (e) {
       if (mounted) {
@@ -64,6 +153,138 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  bool _isEligibleForPaidCheckout(MaterialListing item) {
+    final hasValidOrigin =
+        item.originDestinationId != null &&
+        item.originDestinationId! > 0 &&
+        item.originLabel != null &&
+        item.originLabel!.trim().isNotEmpty;
+    return item.status == 'available' &&
+        !item.isFree &&
+        item.price > 0 &&
+        item.weightKg > 0 &&
+        hasValidOrigin;
+  }
+
+  Future<void> _openCheckout(MaterialListing item) async {
+    final addressVm = widget.addressViewModel;
+    final shippingRepo = widget.shippingRepository;
+    final orderVm = widget.orderViewModel;
+    if (addressVm == null || shippingRepo == null || orderVm == null) return;
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CheckoutScreen(
+          listing: item,
+          addressViewModel: addressVm,
+          shippingRepository: shippingRepo,
+          orderViewModel: orderVm,
+          authViewModel: widget.authViewModel,
+          marketplaceViewModel: widget.viewModel,
+          paymentLauncher: widget.paymentLauncher,
+          initialEstimate: _estimateResult,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openEditListing(MaterialListing item) async {
+    final result = await Navigator.of(context).push<Object?>(
+      MaterialPageRoute(
+        builder: (_) => CreateMaterialListingScreen(
+          viewModel: widget.viewModel,
+          existingListing: item,
+          shippingRepository: widget.shippingRepository,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (result is MaterialListing) {
+      setState(() {
+        _material = result;
+        _estimateResult = null;
+        _estimateError = null;
+      });
+    }
+  }
+
+  Future<void> _openAddressSelection() async {
+    final addressVm = widget.addressViewModel;
+    final shippingRepo = widget.shippingRepository;
+    if (addressVm == null || shippingRepo == null) return;
+
+    await Navigator.of(context).push<UserAddress?>(
+      MaterialPageRoute(
+        builder: (_) => AddressListScreen(
+          addressViewModel: addressVm,
+          shippingRepository: shippingRepo,
+          selectionMode: true,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openAddAddress() async {
+    final addressVm = widget.addressViewModel;
+    final shippingRepo = widget.shippingRepository;
+    if (addressVm == null || shippingRepo == null) return;
+
+    await Navigator.of(context).push<UserAddress?>(
+      MaterialPageRoute(
+        builder: (_) => AddressFormScreen(
+          addressViewModel: addressVm,
+          shippingRepository: shippingRepo,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _estimateShipping(
+    MaterialListing item,
+    UserAddress selectedAddress,
+  ) async {
+    if (_isEstimating) return;
+    final shippingRepo = widget.shippingRepository;
+    if (shippingRepo == null) return;
+
+    final requestVersion = ++_estimateRequestVersion;
+    setState(() {
+      _isEstimating = true;
+      _estimateError = null;
+    });
+
+    try {
+      final result = await shippingRepo.estimateShipping(
+        listingId: item.id,
+        addressId: selectedAddress.id,
+      );
+      if (!mounted || requestVersion != _estimateRequestVersion) return;
+      setState(() {
+        _estimateResult = result;
+        _estimateError = null;
+        _isEstimating = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted || requestVersion != _estimateRequestVersion) return;
+      final friendly = e.message.trim().isNotEmpty
+          ? e.message.trim()
+          : 'Gagal menghitung estimasi ongkos kirim. Silakan coba lagi.';
+      setState(() {
+        _estimateError = friendly;
+        _estimateResult = null;
+        _isEstimating = false;
+      });
+    } catch (_) {
+      if (!mounted || requestVersion != _estimateRequestVersion) return;
+      setState(() {
+        _estimateError =
+            'Gagal menghitung estimasi ongkos kirim. Periksa koneksi lalu coba lagi.';
+        _estimateResult = null;
+        _isEstimating = false;
+      });
     }
   }
 
@@ -180,6 +401,9 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
     }
 
     final item = _material!;
+    final isAuthenticated = widget.authViewModel?.isAuthenticated ?? false;
+    final isOwnListing = _isOwnListing(item);
+
     return RefreshIndicator(
       onRefresh: _fetchDetail,
       child: ListView(
@@ -377,12 +601,99 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // 7. Tombol Hubungi Penjual via WhatsApp (hanya jika bukan pemilik & nomor valid)
+                // 7. Kontrol Pemilik (Edit Listing) atau Panel Estimasi Ongkir Pembeli/Tamu
+                if (isOwnListing) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _openEditListing(item),
+                      icon: const Icon(Icons.edit_outlined, size: 20),
+                      label: Text(
+                        'Edit Listing',
+                        style: AppTypography.labelLg(
+                          color: Colors.white,
+                        ).copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryContainer,
+                        foregroundColor: Colors.white,
+                        shape: const StadiumBorder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ] else ...[
+                  if (_isEligibleForPaidCheckout(item) &&
+                      widget.orderViewModel != null) ...[
+                    if (isAuthenticated &&
+                        widget.addressViewModel != null &&
+                        widget.shippingRepository != null) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton.icon(
+                          onPressed: () => _openCheckout(item),
+                          icon: const Icon(
+                            Icons.shopping_bag_outlined,
+                            size: 20,
+                          ),
+                          label: Text(
+                            'Beli Sekarang',
+                            style: AppTypography.labelLg(
+                              color: Colors.white,
+                            ).copyWith(fontWeight: FontWeight.w700),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryContainer,
+                            foregroundColor: Colors.white,
+                            shape: const StadiumBorder(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ] else if (!isAuthenticated &&
+                        widget.authViewModel != null) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => LoginScreen(
+                                  authViewModel: widget.authViewModel!,
+                                ),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.login, size: 20),
+                          label: Text(
+                            'Masuk untuk Membeli Material',
+                            style: AppTypography.labelLg(
+                              color: Colors.white,
+                            ).copyWith(fontWeight: FontWeight.w700),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryContainer,
+                            foregroundColor: Colors.white,
+                            shape: const StadiumBorder(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  ],
+                  _buildShippingEstimatorPanel(
+                    item,
+                    isAuthenticated: isAuthenticated,
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // 8. Tombol Hubungi Penjual via WhatsApp (hanya jika bukan pemilik & nomor valid)
                 Builder(
                   builder: (context) {
-                    final currentUserId = widget.authViewModel?.currentUser?.id;
-                    final isOwnListing =
-                        currentUserId != null && currentUserId == item.ownerId;
                     final whatsappUri = isOwnListing
                         ? null
                         : PhoneUtils.buildSellerWhatsAppUri(
@@ -446,7 +757,7 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
                   },
                 ),
 
-                // 8. Tombol Smart Matching untuk mencari kebutuhan yang cocok
+                // 9. Tombol Smart Matching untuk mencari kebutuhan yang cocok
                 if (widget.matchingViewModel != null) ...[
                   SizedBox(
                     width: double.infinity,
@@ -458,14 +769,19 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
                               matchingViewModel: widget.matchingViewModel!,
                               marketplaceViewModel: widget.viewModel,
                               authViewModel: widget.authViewModel,
+                              addressViewModel: widget.addressViewModel,
+                              shippingRepository: widget.shippingRepository,
                               listingId: item.id,
-                              title: 'Kebutuhan Cocok untuk ${item.categoryLabel}',
+                              title:
+                                  'Kebutuhan Cocok untuk ${item.categoryLabel}',
                             ),
                           ),
                         );
                       },
-                      icon: const Icon(Icons.bolt,
-                          color: AppColors.primaryContainer),
+                      icon: const Icon(
+                        Icons.bolt,
+                        color: AppColors.primaryContainer,
+                      ),
                       label: Text(
                         'Cari Kebutuhan Cocok (Smart Matching)',
                         textAlign: TextAlign.center,
@@ -480,8 +796,9 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
                           horizontal: 16,
                           vertical: 12,
                         ),
-                        side:
-                            const BorderSide(color: AppColors.primaryContainer),
+                        side: const BorderSide(
+                          color: AppColors.primaryContainer,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -492,6 +809,550 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
                 ],
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShippingEstimatorPanel(
+    MaterialListing item, {
+    required bool isAuthenticated,
+  }) {
+    final hasOrigin = item.originDestinationId != null &&
+        item.originDestinationId! > 0;
+    final originDisplay =
+        (item.originLabel != null && item.originLabel!.trim().isNotEmpty)
+            ? item.originLabel!.trim()
+            : 'Belum diatur';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.outlineVariant.withValues(alpha: 0.7),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.local_shipping_outlined,
+                size: 20,
+                color: AppColors.primaryContainer,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Estimasi Ongkos Kirim',
+                  style: AppTypography.headlineSm(color: AppColors.onSurface),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Ringkasan asal & berat lot
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Asal Pengiriman',
+                  style: AppTypography.labelSm(color: AppColors.outline),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  originDisplay,
+                  style: AppTypography.bodyMd(
+                    color: AppColors.onSurface,
+                  ).copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Berat Satu Lot: ${item.weightKg.toStringAsFixed(1)} kg',
+                  style: AppTypography.bodySm(
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          if (!hasOrigin) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceContainer,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.info_outline,
+                    size: 18,
+                    color: AppColors.secondary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Penjual belum mengatur lokasi asal pengiriman.',
+                      style: AppTypography.bodySm(color: AppColors.onSurface),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else if (!isAuthenticated) ...[
+            Text(
+              'Masuk ke akun Anda untuk memilih alamat tujuan dan menghitung estimasi ongkos kirim.',
+              style: AppTypography.bodySm(color: AppColors.onSurfaceVariant),
+            ),
+            if (widget.authViewModel != null) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => LoginScreen(
+                          authViewModel: widget.authViewModel!,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.login, size: 18),
+                  label: const Text('Masuk untuk Cek Ongkir'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primaryContainer,
+                    side: const BorderSide(color: AppColors.primaryContainer),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ] else if (widget.addressViewModel != null &&
+              widget.shippingRepository != null) ...[
+            _buildAuthenticatedBuyerEstimatorContent(
+              item,
+              widget.addressViewModel!,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAuthenticatedBuyerEstimatorContent(
+    MaterialListing item,
+    AddressViewModel addressVm,
+  ) {
+    if (addressVm.isLoading && addressVm.addresses.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.primaryContainer,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Memuat alamat tujuan...',
+                style: AppTypography.bodySm(color: AppColors.onSurfaceVariant),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (addressVm.errorMessage != null && addressVm.addresses.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            addressVm.errorMessage!,
+            style: AppTypography.bodySm(color: AppColors.error),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 48,
+            child: OutlinedButton.icon(
+              onPressed: addressVm.loadAddresses,
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Coba Lagi'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primaryContainer,
+                side: const BorderSide(color: AppColors.primaryContainer),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final selectedAddress = addressVm.selectedAddress;
+    if (selectedAddress == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Anda belum memiliki alamat tujuan tersimpan.',
+            style: AppTypography.bodySm(color: AppColors.onSurfaceVariant),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: _openAddAddress,
+              icon: const Icon(Icons.add_location_alt_outlined, size: 18),
+              label: Text(
+                'Tambah Alamat Tujuan',
+                style: AppTypography.labelMd(
+                  color: Colors.white,
+                ).copyWith(fontWeight: FontWeight.w700),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryContainer,
+                foregroundColor: Colors.white,
+                shape: const StadiumBorder(),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Alamat tujuan terpilih
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppColors.outlineVariant.withValues(alpha: 0.6),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    'Tujuan: ${selectedAddress.label}',
+                    style: AppTypography.labelMd(
+                      color: AppColors.onSurface,
+                    ).copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  if (selectedAddress.isDefault)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondaryContainer,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                      child: Text(
+                        'Utama',
+                        style: AppTypography.labelSm(
+                          color: AppColors.primary,
+                        ).copyWith(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                selectedAddress.destinationLabel,
+                style: AppTypography.bodySm(
+                  color: AppColors.secondary,
+                ).copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                selectedAddress.addressDetail,
+                style: AppTypography.bodySm(color: AppColors.onSurfaceVariant),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // Aksi Ganti / Tambah Alamat
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            TextButton.icon(
+              onPressed: _isEstimating ? null : _openAddressSelection,
+              style: TextButton.styleFrom(
+                minimumSize: const Size(0, 48),
+                foregroundColor: AppColors.primaryContainer,
+              ),
+              icon: const Icon(Icons.swap_horiz, size: 18),
+              label: const Text('Ganti Alamat'),
+            ),
+            TextButton.icon(
+              onPressed: _isEstimating ? null : _openAddAddress,
+              style: TextButton.styleFrom(
+                minimumSize: const Size(0, 48),
+                foregroundColor: AppColors.secondary,
+              ),
+              icon: const Icon(Icons.add_location_alt_outlined, size: 18),
+              label: const Text('Tambah Alamat'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        // Tombol eksplisit Cek Ongkir
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: ElevatedButton.icon(
+            onPressed: _isEstimating
+                ? null
+                : () => _estimateShipping(item, selectedAddress),
+            icon: _isEstimating
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.calculate_outlined, size: 18),
+            label: Text(
+              _isEstimating ? 'Menghitung Ongkir...' : 'Cek Ongkir',
+              style: AppTypography.labelMd(
+                color: Colors.white,
+              ).copyWith(fontWeight: FontWeight.w700),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryContainer,
+              foregroundColor: Colors.white,
+              shape: const StadiumBorder(),
+            ),
+          ),
+        ),
+
+        // Hasil / Error / Kosong
+        if (_estimateError != null) ...[
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.errorContainer,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _estimateError!,
+                  style: AppTypography.bodySm(
+                    color: AppColors.onErrorContainer,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    onPressed: _isEstimating
+                        ? null
+                        : () => _estimateShipping(item, selectedAddress),
+                    icon: const Icon(Icons.refresh, size: 18),
+                    label: const Text('Coba Lagi'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.onErrorContainer,
+                      side: const BorderSide(
+                        color: AppColors.onErrorContainer,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ] else if (_estimateResult != null) ...[
+          const SizedBox(height: 14),
+          if (_estimateResult!.options.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceContainer,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Layanan pengiriman tidak tersedia untuk rute ini saat ini.',
+                    style: AppTypography.bodySm(color: AppColors.onSurface),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 48,
+                    child: OutlinedButton.icon(
+                      onPressed: _isEstimating
+                          ? null
+                          : () => _estimateShipping(item, selectedAddress),
+                      icon: const Icon(Icons.refresh, size: 18),
+                      label: const Text('Coba Lagi'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primaryContainer,
+                        side: const BorderSide(
+                          color: AppColors.primaryContainer,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Pilihan Layanan Kurir',
+                  style: AppTypography.labelMd(
+                    color: AppColors.onSurface,
+                  ).copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                ..._estimateResult!.options.map(_buildShippingOptionCard),
+              ],
+            ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildShippingOptionCard(ShippingCostOption option) {
+    final etdText = (option.etd != null && option.etd!.trim().isNotEmpty)
+        ? 'Estimasi: ${option.etd!.trim()}'
+        : 'Estimasi belum tersedia';
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.outlineVariant.withValues(alpha: 0.6),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      option.courierName,
+                      style: AppTypography.labelMd(
+                        color: AppColors.onSurface,
+                      ).copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondaryContainer,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        option.service,
+                        style: AppTypography.labelSm(
+                          color: AppColors.primary,
+                        ).copyWith(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ],
+                ),
+                if (option.description != null &&
+                    option.description!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    option.description!.trim(),
+                    style: AppTypography.bodySm(
+                      color: AppColors.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 4),
+                Text(
+                  etdText,
+                  style: AppTypography.labelSm(color: AppColors.outline),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            MaterialListing.formatRupiah(option.cost),
+            style: AppTypography.labelLg(
+              color: AppColors.primaryContainer,
+            ).copyWith(fontWeight: FontWeight.w800),
           ),
         ],
       ),

@@ -76,6 +76,8 @@ class FakeMaterialRepository implements MaterialRepository {
     required bool isFree,
     required String generalLocation,
     required String description,
+    int? originDestinationId,
+    String? originLabel,
     String? imagePath,
   }) async {
     return MaterialListing(
@@ -87,7 +89,42 @@ class FakeMaterialRepository implements MaterialRepository {
       price: price,
       isFree: isFree,
       generalLocation: generalLocation,
+      originDestinationId: originDestinationId,
+      originLabel: originLabel,
       description: description,
+      imageUrl: imagePath,
+      createdAt: DateTime.now(),
+    );
+  }
+
+  @override
+  Future<MaterialListing> updateMaterial({
+    required int id,
+    String? name,
+    String? category,
+    double? weightKg,
+    String? condition,
+    int? price,
+    bool? isFree,
+    String? generalLocation,
+    String? description,
+    int? originDestinationId,
+    String? originLabel,
+    bool clearOrigin = false,
+    String? imagePath,
+  }) async {
+    return MaterialListing(
+      id: id,
+      name: name ?? 'Updated Material #$id',
+      category: category ?? 'PET',
+      weightKg: weightKg ?? 5.0,
+      condition: condition ?? 'clean',
+      price: price ?? 0,
+      isFree: isFree ?? true,
+      generalLocation: generalLocation ?? 'Bandung',
+      originDestinationId: clearOrigin ? null : originDestinationId,
+      originLabel: clearOrigin ? null : originLabel,
+      description: description ?? '',
       imageUrl: imagePath,
       createdAt: DateTime.now(),
     );

@@ -7,21 +7,31 @@ import '../../core/theme/app_typography.dart';
 import '../../core/widgets/plasvora_header.dart';
 import '../../models/activity_item.dart';
 import '../../models/plastic_analysis.dart';
+import '../../repositories/shipping_repository.dart';
 import '../../viewmodels/activity_viewmodel.dart';
+import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/marketplace_viewmodel.dart';
 import '../../viewmodels/navigation_viewmodel.dart';
+import '../../viewmodels/order_viewmodel.dart';
 import '../analysis/analysis_result_screen.dart';
+import '../orders/order_list_screen.dart';
 
 class ActivityScreen extends StatelessWidget {
   final ActivityViewModel? viewModel;
   final MarketplaceViewModel? marketplaceViewModel;
   final NavigationViewModel? navigationViewModel;
+  final ShippingRepository? shippingRepository;
+  final OrderViewModel? orderViewModel;
+  final AuthViewModel? authViewModel;
 
   const ActivityScreen({
     super.key,
     this.viewModel,
     this.marketplaceViewModel,
     this.navigationViewModel,
+    this.shippingRepository,
+    this.orderViewModel,
+    this.authViewModel,
   });
 
   @override
@@ -68,6 +78,10 @@ class ActivityScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildInfoBanner(),
+                  if (orderViewModel != null) ...[
+                    const SizedBox(height: 12),
+                    _buildOrdersShortcut(context),
+                  ],
                   const SizedBox(height: 16),
                   _buildTabSwitcher(context),
                   const SizedBox(height: 16),
@@ -123,6 +137,75 @@ class ActivityScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildOrdersShortcut(BuildContext context) {
+    final vm = orderViewModel!;
+    return Material(
+      color: AppColors.surfaceContainerLowest,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => OrderListScreen(
+                orderViewModel: vm,
+                authViewModel: authViewModel,
+              ),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: AppColors.outlineVariant.withValues(alpha: 0.6),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.secondaryContainer.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.receipt_long_outlined,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Pesanan Saya',
+                      style: AppTypography.labelLg(color: AppColors.onSurface),
+                    ),
+                    Text(
+                      'Lihat status pembelian dan pesanan masuk Anda',
+                      style: AppTypography.bodySm(
+                        color: AppColors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right,
+                color: AppColors.onSurfaceVariant,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -368,6 +451,7 @@ class ActivityScreen extends StatelessWidget {
                     result: analysis,
                     navigationViewModel: navigationViewModel!,
                     marketplaceViewModel: marketplaceViewModel,
+                    shippingRepository: shippingRepository,
                   ),
                 ),
               );

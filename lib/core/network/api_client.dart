@@ -11,8 +11,9 @@ class ApiException implements Exception {
   final String message;
   final int? statusCode;
   final Map<String, dynamic>? errors;
+  final Map<String, dynamic>? data;
 
-  ApiException(this.message, {this.statusCode, this.errors});
+  ApiException(this.message, {this.statusCode, this.errors, this.data});
 
   @override
   String toString() {
@@ -260,14 +261,19 @@ class ApiClient {
   Future<void> deleteToken() => tokenStorage.deleteToken();
   Future<void> clearToken() => tokenStorage.clearToken();
 
-  Future<Map<String, String>> _headers({bool requiresAuth = true}) async {
+  Future<Map<String, String>> _headers({
+    bool requiresAuth = true,
+    String? bearerTokenOverride,
+  }) async {
     final headers = <String, String>{
       'Accept': 'application/json',
       'Content-Type': 'application/json',
       'ngrok-skip-browser-warning': 'true',
     };
 
-    if (requiresAuth) {
+    if (bearerTokenOverride != null && bearerTokenOverride.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $bearerTokenOverride';
+    } else if (requiresAuth) {
       final token = await getToken();
       if (token != null && token.isNotEmpty) {
         headers['Authorization'] = 'Bearer $token';
@@ -296,13 +302,18 @@ class ApiClient {
     String url, {
     Map<String, dynamic>? body,
     bool requiresAuth = true,
+    String? bearerTokenOverride,
+    Duration timeout = const Duration(seconds: 30),
   }) async {
     try {
       final response = await _client.post(
         Uri.parse(url),
-        headers: await _headers(requiresAuth: requiresAuth),
+        headers: await _headers(
+          requiresAuth: requiresAuth,
+          bearerTokenOverride: bearerTokenOverride,
+        ),
         body: body != null ? jsonEncode(body) : null,
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(timeout);
       return _processResponse(response);
     } on SocketException {
       throw ApiException('Tidak dapat terhubung ke server backend');
@@ -414,6 +425,7 @@ class ApiClient {
 
     String errorMessage = 'Terjadi kesalahan pada server';
     Map<String, dynamic>? errors;
+    Map<String, dynamic>? data;
 
     if (jsonBody is Map<String, dynamic>) {
       if (jsonBody['message'] is String) {
@@ -422,12 +434,16 @@ class ApiClient {
       if (jsonBody['errors'] is Map<String, dynamic>) {
         errors = jsonBody['errors'];
       }
+      if (jsonBody['data'] is Map<String, dynamic>) {
+        data = jsonBody['data'];
+      }
     }
 
     throw ApiException(
       errorMessage,
       statusCode: response.statusCode,
       errors: errors,
+      data: data,
     );
   }
 }

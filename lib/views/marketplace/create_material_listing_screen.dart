@@ -5,18 +5,27 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import '../../core/widgets/destination_picker_sheet.dart';
 import '../../core/widgets/plasvora_header.dart';
+import '../../models/material_listing.dart';
 import '../../models/plastic_analysis.dart';
+import '../../repositories/shipping_repository.dart';
 import '../../viewmodels/marketplace_viewmodel.dart';
 
 class CreateMaterialListingScreen extends StatefulWidget {
   final MarketplaceViewModel viewModel;
   final PlasticAnalysisResult? initialAnalysis;
+  final MaterialListing? existingListing;
+  final ShippingRepository? shippingRepository;
+  final Future<String?> Function(ImageSource source)? pickImageOverride;
 
   const CreateMaterialListingScreen({
     super.key,
     required this.viewModel,
     this.initialAnalysis,
+    this.existingListing,
+    this.shippingRepository,
+    this.pickImageOverride,
   });
 
   @override
@@ -37,9 +46,17 @@ class _CreateMaterialListingScreenState
   late String _selectedCategory;
   String _selectedCondition = 'clean';
   String? _selectedImagePath;
+  String? _existingImageUrl;
+  String? _existingLocalAsset;
   String? _imageError;
   bool _isFree = true;
   bool _isSubmitting = false;
+
+  int? _originDestinationId;
+  String? _originLabel;
+  bool _clearOriginRequested = false;
+  String? _originError;
+  String? _formError;
 
   static const List<String> _categories = [
     'PET',
@@ -64,9 +81,43 @@ class _CreateMaterialListingScreenState
     'mixed': 'Campuran',
   };
 
+  bool get _isEditMode => widget.existingListing != null;
+
   @override
   void initState() {
     super.initState();
+    final existing = widget.existingListing;
+    if (existing != null) {
+      _nameCtrl = TextEditingController(text: existing.name);
+      _weightCtrl = TextEditingController(
+        text: _formatEditableWeight(existing.weightKg),
+      );
+      _locationCtrl.text = existing.generalLocation;
+      _isFree = existing.isFree || existing.price == 0;
+      _priceCtrl.text = _isFree ? '0' : existing.price.toString();
+      _descriptionCtrl = TextEditingController(text: existing.description);
+
+      final mappedCat = existing.category.toUpperCase() == 'OTHER'
+          ? 'Lainnya'
+          : existing.category;
+      _selectedCategory = _categories.contains(mappedCat)
+          ? mappedCat
+          : 'Lainnya';
+
+      final mappedCond = existing.condition.toLowerCase() == 'light'
+          ? 'slightly_dirty'
+          : existing.condition.toLowerCase();
+      _selectedCondition = _conditions.contains(mappedCond)
+          ? mappedCond
+          : 'clean';
+
+      _originDestinationId = existing.originDestinationId;
+      _originLabel = existing.originLabel;
+      _existingImageUrl = existing.imageUrl;
+      _existingLocalAsset = existing.localAsset;
+      return;
+    }
+
     final analysis = widget.initialAnalysis;
 
     // Pre-fill dari hasil analisis jika tersedia
@@ -91,17 +142,77 @@ class _CreateMaterialListingScreenState
     }
   }
 
+  String _formatEditableWeight(double weight) {
+    if (weight == weight.truncateToDouble()) {
+      return weight.toInt().toString();
+    }
+    return weight.toString();
+  }
+
+  Future<void> _pickOriginDestination() async {
+    if (_isSubmitting || widget.viewModel.isSaving) return;
+
+    final repo = widget.shippingRepository;
+    if (repo == null) {
+      setState(() {
+        _originError =
+            'Layanan pencarian lokasi asal belum tersedia saat ini.';
+      });
+      return;
+    }
+
+    final selected = await DestinationPickerSheet.show(
+      context,
+      shippingRepository: repo,
+      title: 'Pilih Lokasi Asal Pengiriman',
+    );
+    if (!mounted || selected == null) return;
+
+    setState(() {
+      _originDestinationId = selected.destinationId;
+      _originLabel = selected.label;
+      _clearOriginRequested = false;
+      _originError = null;
+      _formError = null;
+
+      // Isi lokasi umum hanya jika masih kosong — jangan timpa input manual pengguna
+      if (_locationCtrl.text.trim().isEmpty) {
+        final city = selected.cityName?.trim();
+        _locationCtrl.text = (city != null && city.isNotEmpty)
+            ? city
+            : selected.label;
+      }
+    });
+  }
+
+  void _clearOriginSelection() {
+    if (_isSubmitting || widget.viewModel.isSaving) return;
+    setState(() {
+      _originDestinationId = null;
+      _originLabel = null;
+      _clearOriginRequested = true;
+      _originError = null;
+      _formError = null;
+    });
+  }
+
   Future<void> _pickImage(ImageSource source) async {
     setState(() => _imageError = null);
     try {
-      final picked = await _imagePicker.pickImage(
-        source: source,
-        imageQuality: 85,
-        maxWidth: 1600,
-      );
-      if (picked != null && mounted) {
+      String? pickedPath;
+      if (widget.pickImageOverride != null) {
+        pickedPath = await widget.pickImageOverride!(source);
+      } else {
+        final picked = await _imagePicker.pickImage(
+          source: source,
+          imageQuality: 85,
+          maxWidth: 1600,
+        );
+        pickedPath = picked?.path;
+      }
+      if (pickedPath != null && pickedPath.isNotEmpty && mounted) {
         setState(() {
-          _selectedImagePath = picked.path;
+          _selectedImagePath = pickedPath;
           _imageError = null;
         });
       }
@@ -178,7 +289,9 @@ class _CreateMaterialListingScreenState
     if (a.objectDescription != null && a.objectDescription!.isNotEmpty) {
       buffer.writeln('Keterangan: ${a.objectDescription}');
     }
-    buffer.writeln('\n⚠ Data kategori dan deskripsi bersumber dari AI. Berat dan lokasi diisi sendiri oleh penjual.');
+    buffer.writeln(
+      '\n⚠ Data kategori dan deskripsi bersumber dari AI. Berat dan lokasi diisi sendiri oleh penjual.',
+    );
     return buffer.toString().trim();
   }
 
@@ -193,275 +306,584 @@ class _CreateMaterialListingScreenState
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (_isSubmitting || widget.viewModel.isSaving) return;
+
+    setState(() {
+      _formError = null;
+      _originError = null;
+    });
+
+    final trimmedOriginLabel = _originLabel?.trim() ?? '';
+    final hasValidOriginId =
+        _originDestinationId != null && _originDestinationId! > 0;
+    final hasValidOriginLabel = trimmedOriginLabel.isNotEmpty;
+    final hasAnyOriginField =
+        _originDestinationId != null ||
+        (_originLabel != null && _originLabel!.isNotEmpty);
+
+    String? localOriginError;
+    if (hasAnyOriginField && !(hasValidOriginId && hasValidOriginLabel)) {
+      localOriginError =
+          'Lokasi asal pengiriman tidak lengkap. Pilih lokasi valid dari daftar pencarian.';
+    } else if (!_isEditMode && !(hasValidOriginId && hasValidOriginLabel)) {
+      localOriginError =
+          'Lokasi asal pengiriman wajib dipilih dari daftar pencarian.';
+    }
+
+    if (localOriginError != null) {
+      setState(() => _originError = localOriginError);
+    }
+
+    final isFormValid = _formKey.currentState?.validate() ?? false;
+    if (!isFormValid || localOriginError != null) return;
 
     setState(() => _isSubmitting = true);
 
-    final success = await widget.viewModel.createListing(
-      name: _nameCtrl.text.trim(),
-      category: _selectedCategory,
-      weightKg: double.parse(_weightCtrl.text.trim()),
-      condition: _selectedCondition,
-      price: _isFree ? 0 : (num.tryParse(_priceCtrl.text.trim())?.toInt() ?? 0),
-      isFree: _isFree,
-      generalLocation: _locationCtrl.text.trim(),
-      description: _descriptionCtrl.text.trim(),
-      imagePath: _selectedImagePath,
-    );
+    try {
+      if (_isEditMode) {
+        final existing = widget.existingListing!;
+        final hadOrigin =
+            existing.originDestinationId != null ||
+            (existing.originLabel != null &&
+                existing.originLabel!.trim().isNotEmpty);
+        final shouldClearOrigin =
+            _clearOriginRequested && hadOrigin && !hasValidOriginId;
 
-    if (!mounted) return;
+        final updated = await widget.viewModel.updateListing(
+          id: existing.id,
+          name: _nameCtrl.text.trim(),
+          category: _selectedCategory,
+          weightKg: double.parse(_weightCtrl.text.trim()),
+          condition: _selectedCondition,
+          price: _isFree
+              ? 0
+              : (num.tryParse(_priceCtrl.text.trim())?.toInt() ?? 0),
+          isFree: _isFree,
+          generalLocation: _locationCtrl.text.trim(),
+          description: _descriptionCtrl.text.trim(),
+          originDestinationId: shouldClearOrigin
+              ? null
+              : (hasValidOriginId ? _originDestinationId : null),
+          originLabel: shouldClearOrigin
+              ? null
+              : (hasValidOriginLabel ? trimmedOriginLabel : null),
+          clearOrigin: shouldClearOrigin,
+          imagePath: _selectedImagePath,
+        );
 
-    if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Penawaran material berhasil dipublikasikan!'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      Navigator.of(context).pop(true);
-    } else {
-      setState(() => _isSubmitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            widget.viewModel.errorMessage ?? 'Gagal mempublikasikan penawaran.',
+        if (!mounted) return;
+
+        if (updated != null) {
+          setState(() => _isSubmitting = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Penawaran material berhasil diperbarui!'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          Navigator.of(context).pop(updated);
+          return;
+        }
+
+        final errMsg =
+            widget.viewModel.errorMessage ??
+            'Gagal memperbarui penawaran material.';
+        setState(() {
+          _isSubmitting = false;
+          _formError = errMsg;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errMsg),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.red.shade700,
           ),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.red.shade700,
-        ),
+        );
+        return;
+      }
+
+      final success = await widget.viewModel.createListing(
+        name: _nameCtrl.text.trim(),
+        category: _selectedCategory,
+        weightKg: double.parse(_weightCtrl.text.trim()),
+        condition: _selectedCondition,
+        price: _isFree
+            ? 0
+            : (num.tryParse(_priceCtrl.text.trim())?.toInt() ?? 0),
+        isFree: _isFree,
+        generalLocation: _locationCtrl.text.trim(),
+        description: _descriptionCtrl.text.trim(),
+        originDestinationId: _originDestinationId,
+        originLabel: trimmedOriginLabel,
+        imagePath: _selectedImagePath,
       );
+
+      if (!mounted) return;
+
+      if (success) {
+        setState(() => _isSubmitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Penawaran material berhasil dipublikasikan!'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        Navigator.of(context).pop(true);
+      } else {
+        final errMsg =
+            widget.viewModel.errorMessage ??
+            'Gagal mempublikasikan penawaran.';
+        setState(() {
+          _isSubmitting = false;
+          _formError = errMsg;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errMsg),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    } on ArgumentError catch (e) {
+      if (!mounted) return;
+      final rawMessage = e.message?.toString().trim() ?? '';
+      final message = rawMessage.isNotEmpty
+          ? rawMessage
+          : 'Data lokasi asal pengiriman tidak valid. Silakan pilih ulang dari daftar pencarian.';
+      setState(() {
+        _isSubmitting = false;
+        _originError = message;
+        _formError = message;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      const message =
+          'Terjadi kendala saat menyimpan penawaran. Silakan coba lagi.';
+      setState(() {
+        _isSubmitting = false;
+        _formError = message;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final analysis = widget.initialAnalysis;
+    final analysis = _isEditMode ? null : widget.initialAnalysis;
     final isFromAnalysis = analysis != null;
+    final isBusy = _isSubmitting || widget.viewModel.isSaving;
+
+    final appBarTitle = _isEditMode
+        ? 'Edit Listing'
+        : (isFromAnalysis ? 'Jual Material Ini' : 'Tawarkan Material');
 
     return Scaffold(
       appBar: PlasvoraHeader(
-        customTitle: isFromAnalysis ? 'Jual Material Ini' : 'Tawarkan Material',
+        customTitle: appBarTitle,
         showBack: true,
         onBack: () => Navigator.of(context).pop(),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ─── Foto material (pemilihan & preview upload) ────────
-              _buildPhotoSection(analysis),
-              const SizedBox(height: 16),
-
-              // ─── Info banner jika dari analisis ───────────────────
-              if (isFromAnalysis) ...[
-                _buildPrefillBanner(),
+      body: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            16,
+            20,
+            20 + MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ─── Foto material (pemilihan & preview upload) ────────
+                _buildPhotoSection(analysis, isBusy: isBusy),
                 const SizedBox(height: 16),
-              ],
 
-              // ─── Form ─────────────────────────────────────────────
-              Text(
-                'Informasi Material',
-                style: AppTypography.headlineSm(color: AppColors.onSurface),
-              ),
-              const SizedBox(height: 14),
-
-              // Nama material
-              TextFormField(
-                controller: _nameCtrl,
-                textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
-                  labelText: 'Nama Material *',
-                  hintText: 'contoh: Tutup Botol HDPE',
-                ),
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Nama material wajib diisi.';
-                  if (v.trim().length < 3) return 'Nama material minimal 3 karakter.';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-
-              // Kategori polimer
-              DropdownButtonFormField<String>(
-                initialValue: _selectedCategory,
-                decoration: const InputDecoration(
-                  labelText: 'Kategori Polimer *',
-                ),
-                items: _categories
-                    .map((c) => DropdownMenuItem(
-                          value: c,
-                          child: Text(c == 'MIXED' ? 'Campuran (MIXED)' : c),
-                        ))
-                    .toList(),
-                onChanged: (val) {
-                  if (val != null) setState(() => _selectedCategory = val);
-                },
-              ),
-              const SizedBox(height: 12),
-
-              // Berat — TIDAK di-prefill, user harus memasukkan
-              TextFormField(
-                controller: _weightCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                textInputAction: TextInputAction.next,
-                decoration: InputDecoration(
-                  labelText: 'Berat Aktual (kg) *',
-                  hintText: 'contoh: 5.5',
-                  helperText: isFromAnalysis
-                      ? 'Masukkan berat nyata material Anda (tidak diisi otomatis)'
-                      : null,
-                  helperStyle: const TextStyle(
-                    color: AppColors.secondary,
-                    fontSize: 11,
-                  ),
-                ),
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Berat material wajib diisi.';
-                  final w = double.tryParse(v.trim());
-                  if (w == null || w < 0.01) return 'Berat harus lebih dari 0 kg.';
-                  if (w > 99999) return 'Berat maksimal 99999 kg.';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-
-              // Kondisi
-              DropdownButtonFormField<String>(
-                initialValue: _selectedCondition,
-                decoration: const InputDecoration(
-                  labelText: 'Kondisi Material *',
-                ),
-                items: _conditions
-                    .map((c) => DropdownMenuItem(
-                          value: c,
-                          child: Text(_conditionLabels[c] ?? c),
-                        ))
-                    .toList(),
-                onChanged: (val) {
-                  if (val != null) setState(() => _selectedCondition = val);
-                },
-              ),
-              const SizedBox(height: 12),
-
-              // Lokasi — tidak di-prefill, user harus memasukkan
-              TextFormField(
-                controller: _locationCtrl,
-                textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
-                  labelText: 'Lokasi Umum *',
-                  hintText: 'contoh: Kota Bandung',
-                ),
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Lokasi wajib diisi.';
-                  if (v.trim().length < 3) return 'Lokasi minimal 3 karakter.';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-
-              // Gratis / berbayar
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Gratis (donasi)',
-                    style: AppTypography.labelMd(color: AppColors.onSurface),
-                  ),
-                  Switch(
-                    value: _isFree,
-                    activeThumbColor: AppColors.primary,
-                    onChanged: (val) {
-                      setState(() {
-                        _isFree = val;
-                        if (val) _priceCtrl.text = '0';
-                      });
-                    },
-                  ),
+                // ─── Info banner jika dari analisis ───────────────────
+                if (isFromAnalysis) ...[
+                  _buildPrefillBanner(),
+                  const SizedBox(height: 16),
                 ],
-              ),
-              if (!_isFree) ...[
+
+                // ─── Form ─────────────────────────────────────────────
+                Text(
+                  'Informasi Material',
+                  style: AppTypography.headlineSm(color: AppColors.onSurface),
+                ),
+                const SizedBox(height: 14),
+
+                // Nama material
                 TextFormField(
-                  controller: _priceCtrl,
-                  keyboardType: TextInputType.number,
+                  controller: _nameCtrl,
+                  enabled: !isBusy,
                   textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(
-                    labelText: 'Harga total (satu lot) *',
-                    hintText: 'contoh: 15000',
-                    prefixText: 'Rp ',
-                    helperText:
-                        'Harga berlaku untuk seluruh berat lot material ini, bukan per kg.',
-                    helperMaxLines: 2,
+                    labelText: 'Nama Material *',
+                    hintText: 'contoh: Tutup Botol HDPE',
                   ),
                   validator: (v) {
-                    if (_isFree) return null;
-                    if (v == null || v.trim().isEmpty) return 'Harga total (satu lot) wajib diisi jika tidak gratis.';
-                    final p = num.tryParse(v.trim());
-                    if (p == null || p <= 0) return 'Harga harus lebih dari 0.';
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Nama material wajib diisi.';
+                    }
+                    if (v.trim().length < 3) {
+                      return 'Nama material minimal 3 karakter.';
+                    }
                     return null;
                   },
                 ),
                 const SizedBox(height: 12),
-              ],
 
-              // Deskripsi
-              TextFormField(
-                controller: _descriptionCtrl,
-                maxLines: 4,
-                textInputAction: TextInputAction.done,
-                decoration: const InputDecoration(
-                  labelText: 'Deskripsi',
-                  hintText: 'Informasi tambahan tentang material',
-                  alignLabelWithHint: true,
-                ),
-                validator: (v) {
-                  if (v != null && v.length > 2000) return 'Deskripsi maksimal 2000 karakter.';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 24),
-
-              // Tombol submit
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    shape: const StadiumBorder(),
-                    elevation: 4,
+                // Kategori polimer
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedCategory,
+                  decoration: const InputDecoration(
+                    labelText: 'Kategori Polimer *',
                   ),
-                  child: _isSubmitting
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Text(
-                          'Publikasikan Penawaran',
-                          style: AppTypography.labelLg(color: Colors.white)
-                              .copyWith(fontWeight: FontWeight.w700),
+                  items: _categories
+                      .map(
+                        (c) => DropdownMenuItem(
+                          value: c,
+                          child: Text(c == 'MIXED' ? 'Campuran (MIXED)' : c),
                         ),
+                      )
+                      .toList(),
+                  onChanged: isBusy
+                      ? null
+                      : (val) {
+                          if (val != null) {
+                            setState(() => _selectedCategory = val);
+                          }
+                        },
                 ),
-              ),
-              const SizedBox(height: 20),
-            ],
+                const SizedBox(height: 12),
+
+                // Berat — TIDAK di-prefill pada create, user harus memasukkan
+                TextFormField(
+                  controller: _weightCtrl,
+                  enabled: !isBusy,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(
+                    labelText: 'Berat Aktual (kg) *',
+                    hintText: 'contoh: 5.5',
+                    helperText: isFromAnalysis
+                        ? 'Masukkan berat nyata material Anda (tidak diisi otomatis)'
+                        : null,
+                    helperStyle: const TextStyle(
+                      color: AppColors.secondary,
+                      fontSize: 11,
+                    ),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Berat material wajib diisi.';
+                    }
+                    final w = double.tryParse(v.trim());
+                    if (w == null || w < 0.01) {
+                      return 'Berat harus lebih dari 0 kg.';
+                    }
+                    if (w > 99999) return 'Berat maksimal 99999 kg.';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+
+                // Kondisi
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedCondition,
+                  decoration: const InputDecoration(
+                    labelText: 'Kondisi Material *',
+                  ),
+                  items: _conditions
+                      .map(
+                        (c) => DropdownMenuItem(
+                          value: c,
+                          child: Text(_conditionLabels[c] ?? c),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: isBusy
+                      ? null
+                      : (val) {
+                          if (val != null) {
+                            setState(() => _selectedCondition = val);
+                          }
+                        },
+                ),
+                const SizedBox(height: 14),
+
+                // Lokasi asal pengiriman (RajaOngkir destination selector)
+                _buildOriginSelectorSection(isBusy: isBusy),
+                const SizedBox(height: 12),
+
+                // Lokasi umum (free text terpisah dari origin_destination_id/label)
+                TextFormField(
+                  controller: _locationCtrl,
+                  enabled: !isBusy,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: 'Lokasi Umum *',
+                    hintText: 'contoh: Kota Bandung',
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Lokasi wajib diisi.';
+                    }
+                    if (v.trim().length < 3) {
+                      return 'Lokasi minimal 3 karakter.';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+
+                // Gratis / berbayar
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Gratis (donasi)',
+                      style: AppTypography.labelMd(color: AppColors.onSurface),
+                    ),
+                    Switch(
+                      value: _isFree,
+                      activeThumbColor: AppColors.primary,
+                      onChanged: isBusy
+                          ? null
+                          : (val) {
+                              setState(() {
+                                _isFree = val;
+                                if (val) _priceCtrl.text = '0';
+                              });
+                            },
+                    ),
+                  ],
+                ),
+                if (!_isFree) ...[
+                  TextFormField(
+                    controller: _priceCtrl,
+                    enabled: !isBusy,
+                    keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Harga total (satu lot) *',
+                      hintText: 'contoh: 15000',
+                      prefixText: 'Rp ',
+                      helperText:
+                          'Harga berlaku untuk seluruh berat lot material ini, bukan per kg.',
+                      helperMaxLines: 2,
+                    ),
+                    validator: (v) {
+                      if (_isFree) return null;
+                      if (v == null || v.trim().isEmpty) {
+                        return 'Harga total (satu lot) wajib diisi jika tidak gratis.';
+                      }
+                      final p = num.tryParse(v.trim());
+                      if (p == null || p <= 0) {
+                        return 'Harga harus lebih dari 0.';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
+                // Deskripsi
+                TextFormField(
+                  controller: _descriptionCtrl,
+                  enabled: !isBusy,
+                  maxLines: 4,
+                  textInputAction: TextInputAction.done,
+                  decoration: const InputDecoration(
+                    labelText: 'Deskripsi',
+                    hintText: 'Informasi tambahan tentang material',
+                    alignLabelWithHint: true,
+                  ),
+                  validator: (v) {
+                    if (v != null && v.length > 2000) {
+                      return 'Deskripsi maksimal 2000 karakter.';
+                    }
+                    return null;
+                  },
+                ),
+
+                if (_formError != null) ...[
+                  const SizedBox(height: 14),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.errorContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      _formError!,
+                      style: AppTypography.bodySm(
+                        color: AppColors.onErrorContainer,
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 24),
+
+                // Tombol submit
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: isBusy ? null : _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      shape: const StadiumBorder(),
+                      elevation: 4,
+                    ),
+                    child: isBusy
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            _isEditMode
+                                ? 'Simpan Perubahan'
+                                : 'Publikasikan Penawaran',
+                            style: AppTypography.labelLg(
+                              color: Colors.white,
+                            ).copyWith(fontWeight: FontWeight.w700),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildPhotoSection(PlasticAnalysisResult? analysis) {
+  Widget _buildOriginSelectorSection({required bool isBusy}) {
+    final hasSelection =
+        _originLabel != null && _originLabel!.trim().isNotEmpty;
+    final hasAnyOrigin = _originDestinationId != null || hasSelection;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _isEditMode
+              ? 'Lokasi Asal Pengiriman (Opsional)'
+              : 'Lokasi Asal Pengiriman *',
+          style: AppTypography.labelMd(color: AppColors.onSurface),
+        ),
+        const SizedBox(height: 6),
+        Material(
+          color: AppColors.surfaceContainerLowest,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(
+              color: _originError != null
+                  ? AppColors.error
+                  : AppColors.outlineVariant,
+              width: _originError != null ? 1.4 : 0.9,
+            ),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: isBusy ? null : _pickOriginDestination,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 56),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.local_shipping_outlined,
+                      size: 20,
+                      color: AppColors.primaryContainer,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        hasSelection
+                            ? _originLabel!
+                            : 'Pilih kelurahan, kecamatan, atau kota asal',
+                        style: hasSelection
+                            ? AppTypography.bodyMd(color: AppColors.onSurface)
+                            : AppTypography.bodyMd(color: AppColors.outline),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      hasSelection ? 'Ubah' : 'Pilih',
+                      style: AppTypography.labelMd(
+                        color: AppColors.primaryContainer,
+                      ).copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (_isEditMode && hasAnyOrigin)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: isBusy ? null : _clearOriginSelection,
+              style: TextButton.styleFrom(
+                minimumSize: const Size(0, 48),
+                foregroundColor: AppColors.error,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+              ),
+              icon: const Icon(Icons.close, size: 18),
+              label: const Text('Hapus Lokasi Asal'),
+            ),
+          )
+        else if (_isEditMode && !hasAnyOrigin)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 4),
+            child: Text(
+              'Listing lama tanpa lokasi asal tetap dapat diperbarui. Tambahkan lokasi asal agar pembeli bisa menghitung ongkir.',
+              style: AppTypography.bodySm(color: AppColors.onSurfaceVariant),
+            ),
+          ),
+        if (_originError != null) ...[
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.only(left: 4),
+            child: Text(
+              _originError!,
+              style: AppTypography.bodySm(color: AppColors.error),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildPhotoSection(
+    PlasticAnalysisResult? analysis, {
+    required bool isBusy,
+  }) {
     final hasLocalSelection =
         _selectedImagePath != null && _selectedImagePath!.isNotEmpty;
+    final hasExistingImage =
+        _isEditMode &&
+        ((_existingImageUrl != null && _existingImageUrl!.trim().isNotEmpty) ||
+            (_existingLocalAsset != null &&
+                _existingLocalAsset!.trim().isNotEmpty));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -524,7 +946,7 @@ class _CreateMaterialListingScreenState
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: _isSubmitting ? null : _showImageSourceSheet,
+                  onPressed: isBusy ? null : _showImageSourceSheet,
                   icon: const Icon(Icons.photo_camera_outlined, size: 18),
                   label: const Text('Ganti Foto'),
                   style: OutlinedButton.styleFrom(
@@ -540,14 +962,16 @@ class _CreateMaterialListingScreenState
               const SizedBox(width: 10),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: _isSubmitting
+                  onPressed: isBusy
                       ? null
                       : () => setState(() {
                             _selectedImagePath = null;
                             _imageError = null;
                           }),
                   icon: const Icon(Icons.delete_outline, size: 18),
-                  label: const Text('Hapus Foto'),
+                  label: Text(
+                    hasExistingImage ? 'Batal Ganti' : 'Hapus Foto',
+                  ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.error,
                     minimumSize: const Size(0, 48),
@@ -560,13 +984,32 @@ class _CreateMaterialListingScreenState
               ),
             ],
           ),
+        ] else if (hasExistingImage) ...[
+          _buildExistingListingPhotoPreview(),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: isBusy ? null : _showImageSourceSheet,
+              icon: const Icon(Icons.photo_camera_outlined, size: 18),
+              label: const Text('Ganti Foto Material'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primaryContainer,
+                minimumSize: const Size(double.infinity, 48),
+                side: const BorderSide(color: AppColors.primaryContainer),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
         ] else if (analysis != null) ...[
           _buildAnalysisPhotoPreview(analysis),
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: _isSubmitting ? null : _showImageSourceSheet,
+              onPressed: isBusy ? null : _showImageSourceSheet,
               icon: const Icon(Icons.add_a_photo_outlined, size: 18),
               label: const Text('Unggah Foto Baru dari Kamera / Galeri'),
               style: OutlinedButton.styleFrom(
@@ -610,7 +1053,7 @@ class _CreateMaterialListingScreenState
                   children: [
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: _isSubmitting
+                        onPressed: isBusy
                             ? null
                             : () => _pickImage(ImageSource.camera),
                         icon: const Icon(Icons.photo_camera, size: 18),
@@ -627,10 +1070,13 @@ class _CreateMaterialListingScreenState
                     const SizedBox(width: 10),
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: _isSubmitting
+                        onPressed: isBusy
                             ? null
                             : () => _pickImage(ImageSource.gallery),
-                        icon: const Icon(Icons.photo_library_outlined, size: 18),
+                        icon: const Icon(
+                          Icons.photo_library_outlined,
+                          size: 18,
+                        ),
                         label: const Text('Dari Galeri'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.primaryContainer,
@@ -659,6 +1105,72 @@ class _CreateMaterialListingScreenState
     );
   }
 
+  Widget _buildExistingListingPhotoPreview() {
+    final imageUrl = _existingImageUrl?.trim();
+    final localAsset = _existingLocalAsset?.trim();
+
+    return Container(
+      width: double.infinity,
+      height: 180,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainer,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (imageUrl != null &&
+                (imageUrl.startsWith('http://') ||
+                    imageUrl.startsWith('https://')))
+              Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => _buildExistingFallback(localAsset),
+              )
+            else
+              _buildExistingFallback(localAsset),
+            Positioned(
+              bottom: 10,
+              left: 10,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryContainer.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: Text(
+                  'Foto Saat Ini',
+                  style: AppTypography.labelSm(color: Colors.white)
+                      .copyWith(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExistingFallback(String? localAsset) {
+    if (localAsset != null && localAsset.isNotEmpty) {
+      return Image.asset(
+        localAsset,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => const Center(
+          child: Icon(Icons.recycling, size: 44, color: AppColors.secondary),
+        ),
+      );
+    }
+    return const Center(
+      child: Icon(Icons.recycling, size: 44, color: AppColors.secondary),
+    );
+  }
+
   Widget _buildAnalysisPhotoPreview(PlasticAnalysisResult analysis) {
     return Container(
       width: double.infinity,
@@ -682,7 +1194,10 @@ class _CreateMaterialListingScreenState
               bottom: 10,
               left: 10,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.primaryContainer.withValues(alpha: 0.92),
                   borderRadius: BorderRadius.circular(99),
