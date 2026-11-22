@@ -1,17 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:plasvora/core/network/api_client.dart';
 import 'package:plasvora/core/theme/app_theme.dart';
 import 'package:plasvora/core/utils/phone_utils.dart';
-import 'package:plasvora/core/widgets/plasvora_header.dart';
 import 'package:plasvora/models/material_listing.dart';
 import 'package:plasvora/models/user_profile.dart';
 import 'package:plasvora/repositories/auth_repository.dart';
-import 'package:plasvora/repositories/material_repository.dart';
 import 'package:plasvora/viewmodels/auth_viewmodel.dart';
-import 'package:plasvora/viewmodels/home_viewmodel.dart';
-import 'package:plasvora/viewmodels/navigation_viewmodel.dart';
-import 'package:plasvora/views/home/home_screen.dart';
+import 'package:plasvora/views/profile/edit_profile_screen.dart';
 
 class _Stage11FakeAuthRepository implements AuthRepository {
   UserProfile currentUser;
@@ -71,6 +68,17 @@ class _Stage11FakeAuthRepository implements AuthRepository {
 }
 
 void main() {
+  late bool previousAllowRuntimeFetching;
+
+  setUpAll(() {
+    previousAllowRuntimeFetching = GoogleFonts.config.allowRuntimeFetching;
+    GoogleFonts.config.allowRuntimeFetching = false;
+  });
+
+  tearDownAll(() {
+    GoogleFonts.config.allowRuntimeFetching = previousAllowRuntimeFetching;
+  });
+
   group('Stage 1 — PhoneUtils & WhatsApp Link', () {
     test('normalizes valid Indonesian phone formats to 628...', () {
       expect(PhoneUtils.normalizeIndonesianPhone('081234567890'), '6281234567890');
@@ -194,7 +202,7 @@ void main() {
     });
   });
 
-  group('Stage 1.1 — WhatsApp Contact Privacy (Model & Profile Modal)', () {
+  group('Stage 1.1 — WhatsApp Contact Privacy (Model & EditProfileScreen)', () {
     test('1 & 2. UserProfile parses whatsapp_public and defaults missing/null to false', () {
       final missing = UserProfile.fromJson({
         'id': 1,
@@ -230,39 +238,18 @@ void main() {
       expect(disabled.whatsappPublic, isFalse);
     });
 
-    Future<void> openProfileModal(
+    Future<void> openEditProfileScreen(
       WidgetTester tester,
       AuthViewModel authViewModel,
     ) async {
-      final homeViewModel = HomeViewModel(
-        materialRepository: MockMaterialRepository(simulateDelay: false),
-      );
-      final navigationViewModel = NavigationViewModel();
-
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.lightTheme,
-          home: HomeScreen(
-            viewModel: homeViewModel,
-            navigationViewModel: navigationViewModel,
-            authViewModel: authViewModel,
-          ),
+          home: EditProfileScreen(authViewModel: authViewModel),
         ),
       );
       await tester.pumpAndSettle();
-
-      // InkWell pada tombol notifikasi di PlasvoraHeader membangun GestureDetector internal lebih awal.
-      // Targetkan secara eksplisit GestureDetector milik avatar pengguna (yang membungkus ClipRRect).
-      final avatarFinder = find.descendant(
-        of: find.byType(PlasvoraHeader),
-        matching: find.byWidgetPredicate(
-          (widget) => widget is GestureDetector && widget.child is ClipRRect,
-        ),
-      );
-      expect(avatarFinder, findsOneWidget);
-      await tester.tap(avatarFinder);
-      await tester.pumpAndSettle();
-      expect(find.text('Profil Akun'), findsOneWidget);
+      expect(find.text('Edit Profil'), findsOneWidget);
     }
 
     testWidgets('3. Profile switch displays the server state accurately', (tester) async {
@@ -278,7 +265,7 @@ void main() {
       final authVm = AuthViewModel(authRepository: fakeRepo);
       await authVm.checkAuthSession();
 
-      await openProfileModal(tester, authVm);
+      await openEditProfileScreen(tester, authVm);
 
       expect(
         find.text('Tampilkan nomor WhatsApp saya pada detail material'),
@@ -303,7 +290,7 @@ void main() {
       final authVm = AuthViewModel(authRepository: fakeRepo);
       await authVm.checkAuthSession();
 
-      await openProfileModal(tester, authVm);
+      await openEditProfileScreen(tester, authVm);
 
       final switchTile = tester.widget<SwitchListTile>(
         find.byType(SwitchListTile),
@@ -333,9 +320,10 @@ void main() {
       final authVm = AuthViewModel(authRepository: fakeRepo);
       await authVm.checkAuthSession();
 
-      await openProfileModal(tester, authVm);
+      await openEditProfileScreen(tester, authVm);
 
       await tester.ensureVisible(find.byType(SwitchListTile));
+      await tester.pumpAndSettle();
       await tester.tap(find.byType(SwitchListTile));
       await tester.pumpAndSettle();
 

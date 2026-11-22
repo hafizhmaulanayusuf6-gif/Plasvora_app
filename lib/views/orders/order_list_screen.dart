@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import '../../core/utils/display_formatters.dart';
 import '../../core/utils/payment_launcher.dart';
-import '../../core/widgets/plasvora_header.dart';
+import '../../core/widgets/simple_page_app_bar.dart';
 import '../../models/order_item.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/order_viewmodel.dart';
@@ -30,12 +31,10 @@ class OrderListScreen extends StatefulWidget {
 class _OrderListScreenState extends State<OrderListScreen> {
   static const List<(String?, String)> _statusFilters = [
     (null, 'Semua'),
-    (OrderItem.statusPendingPayment, 'Menunggu Bayar'),
-    (OrderItem.statusPaid, 'Dibayar'),
+    (OrderItem.statusPendingPayment, 'Belum Bayar'),
+    (OrderItem.statusPaid, 'Diproses'),
     (OrderItem.statusShipped, 'Dikirim'),
     (OrderItem.statusCompleted, 'Selesai'),
-    (OrderItem.statusCancelled, 'Dibatalkan'),
-    (OrderItem.statusExpired, 'Kedaluwarsa'),
   ];
 
   late int _selectedTabIndex; // 0 = Pembelian (buyer), 1 = Penjualan (seller)
@@ -110,77 +109,78 @@ class _OrderListScreenState extends State<OrderListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: const PlasvoraHeader(
-        customTitle: 'Pesanan Saya',
-        showBack: true,
-      ),
-      body: ListenableBuilder(
-        listenable: widget.orderViewModel,
-        builder: (context, _) {
-          final vm = widget.orderViewModel;
-          final isBuyerTab = _selectedTabIndex == 0;
-          final orders = isBuyerTab ? vm.buyerOrders : vm.sellerOrders;
-          final isLoading =
-              isBuyerTab ? vm.isLoadingBuyerList : vm.isLoadingSellerList;
-          final errorMessage =
-              isBuyerTab ? vm.buyerListError : vm.sellerListError;
-          final activeStatus =
-              isBuyerTab ? vm.buyerStatusFilter : vm.sellerStatusFilter;
-          final hasMore = isBuyerTab ? vm.buyerHasMore : vm.sellerHasMore;
+      appBar: const SimplePageAppBar(title: 'Pesanan Saya'),
+      body: SafeArea(
+        top: false,
+        child: ListenableBuilder(
+          listenable: widget.orderViewModel,
+          builder: (context, _) {
+            final vm = widget.orderViewModel;
+            final isBuyerTab = _selectedTabIndex == 0;
+            final orders = isBuyerTab ? vm.buyerOrders : vm.sellerOrders;
+            final isLoading =
+                isBuyerTab ? vm.isLoadingBuyerList : vm.isLoadingSellerList;
+            final errorMessage =
+                isBuyerTab ? vm.buyerListError : vm.sellerListError;
+            final activeStatus =
+                isBuyerTab ? vm.buyerStatusFilter : vm.sellerStatusFilter;
+            final hasMore = isBuyerTab ? vm.buyerHasMore : vm.sellerHasMore;
 
-          return Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
-                child: _buildRoleSwitcher(),
-              ),
-              SizedBox(
-                height: 44,
-                child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _statusFilters.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 8),
-                  itemBuilder: (context, index) {
-                    final filter = _statusFilters[index];
-                    final selected = activeStatus == filter.$1;
-                    return ChoiceChip(
-                      label: Text(filter.$2),
-                      selected: selected,
-                      onSelected: (_) => _applyStatusFilter(filter.$1),
-                      selectedColor: AppColors.primaryContainer,
-                      backgroundColor: AppColors.surfaceContainerLowest,
-                      labelStyle: AppTypography.labelSm(
-                        color: selected
-                            ? Colors.white
-                            : AppColors.onSurfaceVariant,
-                      ).copyWith(fontWeight: FontWeight.w600),
-                      side: BorderSide(
-                        color: selected
-                            ? AppColors.primaryContainer
-                            : AppColors.outlineVariant,
-                      ),
-                    );
-                  },
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+                  child: _buildRoleSwitcher(),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: RefreshIndicator(
-                  onRefresh: _refreshCurrentTab,
-                  color: AppColors.primaryContainer,
-                  child: _buildOrderListBody(
-                    orders: orders,
-                    isBuyerTab: isBuyerTab,
-                    isLoading: isLoading,
-                    errorMessage: errorMessage,
-                    hasMore: hasMore,
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _statusFilters.map((filter) {
+                      final selected = activeStatus == filter.$1;
+                      return ChoiceChip(
+                        label: Text(filter.$2),
+                        selected: selected,
+                        onSelected: (_) => _applyStatusFilter(filter.$1),
+                        selectedColor: AppColors.primaryContainer,
+                        backgroundColor: AppColors.surfaceContainerLowest,
+                        showCheckmark: false,
+                        visualDensity: VisualDensity.compact,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        labelStyle: AppTypography.labelSm(
+                          color: selected
+                              ? Colors.white
+                              : AppColors.onSurfaceVariant,
+                        ).copyWith(fontWeight: FontWeight.w600),
+                        side: BorderSide(
+                          color: selected
+                              ? AppColors.primaryContainer
+                              : AppColors.outlineVariant,
+                        ),
+                      );
+                    }).toList(),
                   ),
                 ),
-              ),
-            ],
-          );
-        },
+                const SizedBox(height: 10),
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _refreshCurrentTab,
+                    color: AppColors.primaryContainer,
+                    child: _buildOrderListBody(
+                      orders: orders,
+                      isBuyerTab: isBuyerTab,
+                      isLoading: isLoading,
+                      errorMessage: errorMessage,
+                      hasMore: hasMore,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -249,13 +249,19 @@ class _OrderListScreenState extends State<OrderListScreen> {
                 color: selected ? AppColors.primary : AppColors.onSurfaceVariant,
               ),
               const SizedBox(width: 6),
-              Text(
-                label,
-                style: selected
-                    ? AppTypography.labelMd(
-                        color: AppColors.primary,
-                      ).copyWith(fontWeight: FontWeight.w700)
-                    : AppTypography.labelMd(color: AppColors.onSurfaceVariant),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: selected
+                      ? AppTypography.labelMd(
+                          color: AppColors.primary,
+                        ).copyWith(fontWeight: FontWeight.w700)
+                      : AppTypography.labelMd(
+                          color: AppColors.onSurfaceVariant,
+                        ),
+                ),
               ),
             ],
           ),
@@ -294,6 +300,10 @@ class _OrderListScreenState extends State<OrderListScreen> {
           Center(
             child: ElevatedButton.icon(
               onPressed: _refreshCurrentTab,
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(140, 48),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+              ),
               icon: const Icon(Icons.refresh, size: 18),
               label: const Text('Coba Lagi'),
             ),
@@ -335,7 +345,7 @@ class _OrderListScreenState extends State<OrderListScreen> {
 
     return ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
       itemCount: orders.length + (hasMore ? 1 : 0),
       separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
@@ -364,9 +374,10 @@ class _OrderListScreenState extends State<OrderListScreen> {
 
   Widget _buildOrderCard(OrderItem order, {required bool isBuyerTab}) {
     final badge = _badgeStyle(order.status);
-    final counterparty = isBuyerTab
-        ? (order.sellerName != null ? 'Penjual: ${order.sellerName!}' : null)
-        : (order.buyerName != null ? 'Pembeli: ${order.buyerName!}' : null);
+    final dateText = order.createdAt != null
+        ? DisplayFormatters.formatShortDate(order.createdAt!)
+        : null;
+    final secondaryCue = _secondaryHint(order, isBuyerTab: isBuyerTab);
 
     return Material(
       color: AppColors.surfaceContainerLowest,
@@ -379,7 +390,7 @@ class _OrderListScreenState extends State<OrderListScreen> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: AppColors.outlineVariant.withValues(alpha: 0.6),
+              color: AppColors.outlineVariant.withValues(alpha: 0.55),
             ),
           ),
           child: Column(
@@ -389,10 +400,12 @@ class _OrderListScreenState extends State<OrderListScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      order.orderNumber,
-                      style: AppTypography.labelMd(
-                        color: AppColors.onSurface,
-                      ).copyWith(fontWeight: FontWeight.w700),
+                      dateText != null
+                          ? '${order.orderNumber} · $dateText'
+                          : order.orderNumber,
+                      style: AppTypography.labelSm(
+                        color: AppColors.onSurfaceVariant,
+                      ).copyWith(fontWeight: FontWeight.w600),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -400,7 +413,7 @@ class _OrderListScreenState extends State<OrderListScreen> {
                   const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
+                      horizontal: 9,
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
@@ -423,8 +436,8 @@ class _OrderListScreenState extends State<OrderListScreen> {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(10),
                     child: SizedBox(
-                      width: 56,
-                      height: 56,
+                      width: 52,
+                      height: 52,
                       child: (order.listing.imageUrl != null &&
                               order.listing.imageUrl!.isNotEmpty)
                           ? Image.network(
@@ -444,73 +457,41 @@ class _OrderListScreenState extends State<OrderListScreen> {
                           order.listing.name,
                           style: AppTypography.labelLg(
                             color: AppColors.onSurface,
-                          ),
+                          ).copyWith(fontWeight: FontWeight.w700),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        if (counterparty != null) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            counterparty,
-                            style: AppTypography.bodySm(
-                              color: AppColors.onSurfaceVariant,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
                         const SizedBox(height: 4),
-                        Text(
-                          isBuyerTab
-                              ? 'Pembayaran: ${order.paymentStatusLabel}'
-                              : order.sellerCardHint,
-                          style: AppTypography.labelSm(
-                            color: isBuyerTab
-                                ? AppColors.onSurfaceVariant
-                                : AppColors.primary,
-                          ).copyWith(fontWeight: FontWeight.w600),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                order.formattedTotalAmount,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.labelLg(
+                                  color: AppColors.primaryContainer,
+                                ).copyWith(fontWeight: FontWeight.w800),
+                              ),
+                            ),
+                            if (secondaryCue != null) ...[
+                              const SizedBox(width: 8),
+                              Text(
+                                secondaryCue,
+                                style: AppTypography.labelSm(
+                                  color: AppColors.primary,
+                                ).copyWith(fontWeight: FontWeight.w700),
+                              ),
+                            ],
+                            const SizedBox(width: 2),
+                            const Icon(
+                              Icons.chevron_right,
+                              size: 18,
+                              color: AppColors.outline,
+                            ),
+                          ],
                         ),
                       ],
-                    ),
-                  ),
-                ],
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 10),
-                child: Divider(height: 1),
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Total Pembayaran',
-                          style: AppTypography.labelSm(
-                            color: AppColors.outline,
-                          ),
-                        ),
-                        Text(
-                          order.formattedTotalAmount,
-                          style: AppTypography.labelLg(
-                            color: AppColors.primaryContainer,
-                          ).copyWith(fontWeight: FontWeight.w800),
-                        ),
-                      ],
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () => _openOrderDetail(order),
-                    style: TextButton.styleFrom(
-                      minimumSize: const Size(48, 44),
-                      foregroundColor: AppColors.primaryContainer,
-                    ),
-                    child: Text(
-                      _cardActionLabel(order, isBuyerTab: isBuyerTab),
-                      style: AppTypography.labelMd(
-                        color: AppColors.primaryContainer,
-                      ).copyWith(fontWeight: FontWeight.w700),
                     ),
                   ),
                 ],
@@ -522,14 +503,14 @@ class _OrderListScreenState extends State<OrderListScreen> {
     );
   }
 
-  String _cardActionLabel(OrderItem order, {required bool isBuyerTab}) {
+  String? _secondaryHint(OrderItem order, {required bool isBuyerTab}) {
     if (isBuyerTab) {
-      if (order.isPendingPayment) return 'Lanjutkan Pembayaran';
-      if (order.isShipped) return 'Lacak Pengiriman';
-      return 'Lihat Detail';
+      if (order.isPendingPayment) return 'Bayar';
+      if (order.isShipped) return 'Konfirmasi';
+      return null;
     }
     if (order.isPaid) return 'Input Resi';
-    return 'Lihat Detail';
+    return null;
   }
 
   Widget _placeholderThumb() {

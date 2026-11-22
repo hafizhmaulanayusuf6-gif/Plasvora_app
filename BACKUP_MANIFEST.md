@@ -1549,3 +1549,54 @@ Direktori Backup Fisik:
 $bak = "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_stage3_checkout_blank_screen_fix"
 Copy-Item "$bak\*" "C:\Project\Plasvora_app\" -Recurse -Force
 ```
+
+
+
+---
+
+## 47. Backup UI/UX Refinement & Navigation Restructuring (Full Profile Tab, Activity Relocation, SimplePageAppBar, Checkout/Orders Polish)
+
+**Tanggal**: 22 November 2026  
+**Fitur**: Plasvora UI/UX Refinement & Navigation Restructuring (Stage 3 Polish + Global Layout Consistency)  
+**Tujuan**:
+1. Memperkenalkan `SimplePageAppBar` (`lib/core/widgets/simple_page_app_bar.dart`) untuk halaman internal (`CheckoutScreen`, `OrderListScreen`, `OrderDetailScreen`, `ActivityScreen`, `AddressListScreen`, `AddressFormScreen`, `EditProfileScreen`) dan heading tab root `Profil`, sambil mempertahankan `PlasvoraHeader` khusus pada tab utama (`Beranda`, `Analisis`, `Marketplace`).
+2. Merestrukturisasi 4 tab navigasi bawah (`AppBottomNav` & `MainNavigationScreen`) menjadi `Beranda | Analisis | Marketplace | Profil` dengan menambahkan `ProfileScreen` (`lib/views/profile/profile_screen.dart`), memigrasikan pengaturan nomor telepon & privasi WhatsApp dari modal lama `_ProfileAccountSheet` ke `EditProfileScreen` (`lib/views/profile/edit_profile_screen.dart`), merelokasi `ActivityScreen` ke dalam `Profil -> Aktivitas`, serta mengarahkan ketukan avatar header pada tab utama ke tab `Profil` (jika authenticated) atau `LoginScreen` (jika guest).
+3. Memperkenalkan helper presentasi murni `DisplayFormatters` (`lib/core/utils/display_formatters.dart`) untuk deduplikasi label lokasi berurutan, lokalisasi estimasi ETD ke Bahasa Indonesia, ringkasan nama kurir untuk tampilan UI, dan pemformatan tanggal tanpa mengubah payload backend.
+4. Menyempurnakan `CheckoutScreen` (top-3 opsi kurir awal dengan badge objektif `Termurah` / `Estimasi Lebih Cepat` + toggle `Lihat Opsi Lain` yang mempertahankan kurir terpilih, menghapus `Biaya Platform: Rp 0` hardcoded, sticky SafeArea bottom bar `Bayar Rp ...` dengan finite `minimumSize` anti-crash `AppTheme`), `OrderDetailScreen` (single-line nomor pesanan + tombol salin nilai penuh, panel Next Step / Primary Action tepat di bawah header, `Ringkasan Material`, pengelompokan Pengiriman & Alamat Tujuan dengan privasi penjual, `Biaya Platform` hanya tampil bila `> 0`, `Riwayat Status Pesanan` terlipat secara default), serta `OrderListScreen` (5 filter status utama `Semua`, `Belum Bayar`, `Diproses`, `Dikirim`, `Selesai`, kartu pesanan ringkas bebas PII).
+5. Memperbarui suite widget tests terkait (`test/profile_logout_security_test.dart`, `test/stage1_marketplace_foundation_test.dart`, `test/checkout_screen_test.dart`, `test/order_list_screen_test.dart`, `test/order_detail_screen_test.dart`) serta menambahkan `test/profile_navigation_refinement_test.dart`.
+6. Tidak ada perubahan pada backend Laravel, `.env`, migrasi database, repository, ViewModel data bisnis, maupun dependensi paket.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_ui_ux_refinement_nav_restructure_fe\`
+
+### File Eksisting yang Di-backup & Dimodifikasi (17 file):
+1. `lib/core/widgets/app_bottom_nav.dart`
+2. `lib/viewmodels/navigation_viewmodel.dart`
+3. `lib/views/main_navigation_screen.dart`
+4. `lib/views/activity/activity_screen.dart`
+5. `lib/views/address/address_list_screen.dart`
+6. `lib/views/address/address_form_screen.dart`
+7. `lib/views/analysis/analysis_screen.dart`
+8. `lib/views/home/home_screen.dart`
+9. `lib/views/marketplace/marketplace_screen.dart`
+10. `lib/views/checkout/checkout_screen.dart`
+11. `lib/views/orders/order_list_screen.dart`
+12. `lib/views/orders/order_detail_screen.dart`
+13. `test/profile_logout_security_test.dart`
+14. `test/stage1_marketplace_foundation_test.dart`
+15. `test/checkout_screen_test.dart`
+16. `test/order_list_screen_test.dart`
+17. `test/order_detail_screen_test.dart`
+
+### File Baru Ditambahkan (5 file):
+1. `lib/core/widgets/simple_page_app_bar.dart`
+2. `lib/core/utils/display_formatters.dart`
+3. `lib/views/profile/edit_profile_screen.dart`
+4. `lib/views/profile/profile_screen.dart`
+5. `test/profile_navigation_refinement_test.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+$bak = "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_ui_ux_refinement_nav_restructure_fe"
+Copy-Item "$bak\*" "C:\Project\Plasvora_app\" -Recurse -Force
+```

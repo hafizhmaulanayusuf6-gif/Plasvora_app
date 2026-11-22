@@ -13,6 +13,7 @@ import '../../viewmodels/matching_viewmodel.dart';
 import '../../viewmodels/material_request_viewmodel.dart';
 import '../../viewmodels/navigation_viewmodel.dart';
 import '../../viewmodels/order_viewmodel.dart';
+import '../auth/login_screen.dart';
 import '../material_request/create_material_request_screen.dart';
 import '../material_request/material_request_detail_screen.dart';
 import '../matching/matching_results_screen.dart';
@@ -55,10 +56,23 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     super.dispose();
   }
 
+  void _handleAvatarTap() {
+    final authVm = widget.authViewModel;
+    if (authVm == null || authVm.isAuthenticated) {
+      widget.navigationViewModel.goToProfile();
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => LoginScreen(authViewModel: authVm),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const PlasvoraHeader(),
+      appBar: PlasvoraHeader(onAvatarTap: _handleAvatarTap),
       floatingActionButton: _selectedMainTab == 0
           ? _buildOfferMaterialFAB(context)
           : _buildCreateRequestFAB(context),

@@ -12,10 +12,10 @@ import '../viewmodels/matching_viewmodel.dart';
 import '../viewmodels/material_request_viewmodel.dart';
 import '../viewmodels/navigation_viewmodel.dart';
 import '../viewmodels/order_viewmodel.dart';
-import 'activity/activity_screen.dart';
 import 'analysis/analysis_screen.dart';
 import 'home/home_screen.dart';
 import 'marketplace/marketplace_screen.dart';
+import 'profile/profile_screen.dart';
 
 class MainNavigationScreen extends StatelessWidget {
   final NavigationViewModel navigationViewModel;
@@ -67,6 +67,7 @@ class MainNavigationScreen extends StatelessWidget {
               AnalysisScreen(
                 viewModel: analysisViewModel,
                 navigationViewModel: navigationViewModel,
+                authViewModel: authViewModel,
                 marketplaceViewModel: marketplaceViewModel,
                 shippingRepository: shippingRepository,
               ),
@@ -80,13 +81,14 @@ class MainNavigationScreen extends StatelessWidget {
                 shippingRepository: shippingRepository,
                 orderViewModel: orderViewModel,
               ),
-              ActivityScreen(
-                viewModel: activityViewModel,
+              ProfileScreen(
+                authViewModel: authViewModel,
+                activityViewModel: activityViewModel,
+                orderViewModel: orderViewModel,
+                addressViewModel: addressViewModel,
+                shippingRepository: shippingRepository,
                 marketplaceViewModel: marketplaceViewModel,
                 navigationViewModel: navigationViewModel,
-                shippingRepository: shippingRepository,
-                orderViewModel: orderViewModel,
-                authViewModel: authViewModel,
               ),
             ],
           ),

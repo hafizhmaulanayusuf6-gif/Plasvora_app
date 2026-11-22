@@ -3,8 +3,10 @@ import 'package:flutter/services.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import '../../core/utils/display_formatters.dart';
 import '../../core/utils/payment_launcher.dart';
-import '../../core/widgets/plasvora_header.dart';
+import '../../core/utils/phone_utils.dart';
+import '../../core/widgets/simple_page_app_bar.dart';
 import '../../models/order_item.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/order_viewmodel.dart';
@@ -39,6 +41,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
 
   bool _isLaunchingPayment = false;
   bool _isAutoRefreshingOnResume = false;
+  bool _isHistoryExpanded = false;
 
   @override
   void initState() {
@@ -198,6 +201,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,
               foregroundColor: Colors.white,
+              minimumSize: const Size(0, 44),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
             ),
             child: const Text('Ya, Batalkan'),
           ),
@@ -247,6 +252,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryContainer,
               foregroundColor: Colors.white,
+              minimumSize: const Size(0, 44),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
             ),
             child: const Text('Ya, Sudah Diterima'),
           ),
@@ -260,7 +267,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
     if (!mounted) return;
 
     if (updated != null) {
-      _showSnackBar('Pesanan selesai. Terima kasih telah bertransaksi di Plasvora.');
+      _showSnackBar(
+        'Pesanan selesai. Terima kasih telah bertransaksi di Plasvora.',
+      );
     } else {
       _showSnackBar(
         widget.orderViewModel.errorMessage ??
@@ -295,6 +304,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryContainer,
               foregroundColor: Colors.white,
+              minimumSize: const Size(0, 44),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
             ),
             child: const Text('Kirim Pesanan'),
           ),
@@ -323,6 +334,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
     }
   }
 
+  Future<void> _copyOrderNumber(String orderNumber) async {
+    await Clipboard.setData(ClipboardData(text: orderNumber));
+    if (!mounted) return;
+    _showSnackBar('Nomor pesanan disalin.');
+  }
+
   Future<void> _copyTrackingNumber(String trackingNumber) async {
     await Clipboard.setData(ClipboardData(text: trackingNumber));
     if (!mounted) return;
@@ -343,93 +360,97 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: const PlasvoraHeader(
-        customTitle: 'Detail Pesanan',
-        showBack: true,
-      ),
-      body: ListenableBuilder(
-        listenable: widget.orderViewModel,
-        builder: (context, _) {
-          final vm = widget.orderViewModel;
-          final order = _resolvedOrder;
+      appBar: const SimplePageAppBar(title: 'Detail Pesanan'),
+      body: SafeArea(
+        top: false,
+        child: ListenableBuilder(
+          listenable: widget.orderViewModel,
+          builder: (context, _) {
+            final vm = widget.orderViewModel;
+            final order = _resolvedOrder;
 
-          if (vm.isLoadingDetail && order == null) {
-            return const Center(
-              child: CircularProgressIndicator(color: AppColors.primaryContainer),
-            );
-          }
-
-          if (order == null) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.error_outline,
-                      size: 48,
-                      color: AppColors.error,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      vm.detailError ?? 'Detail pesanan tidak ditemukan.',
-                      style: AppTypography.bodyMd(color: AppColors.onSurface),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed: () => vm.loadOrderDetail(widget.orderId),
-                      icon: const Icon(Icons.refresh, size: 18),
-                      label: const Text('Coba Lagi'),
-                    ),
-                  ],
+            if (vm.isLoadingDetail && order == null) {
+              return const Center(
+                child: CircularProgressIndicator(
+                  color: AppColors.primaryContainer,
                 ),
+              );
+            }
+
+            if (order == null) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.error_outline,
+                        size: 48,
+                        color: AppColors.error,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        vm.detailError ?? 'Detail pesanan tidak ditemukan.',
+                        style: AppTypography.bodyMd(color: AppColors.onSurface),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        onPressed: () => vm.loadOrderDetail(widget.orderId),
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size(140, 48),
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                        ),
+                        icon: const Icon(Icons.refresh, size: 18),
+                        label: const Text('Coba Lagi'),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            final currentUserId = widget.authViewModel?.currentUser?.id;
+            final isBuyer = order.isBuyerForUser(currentUserId);
+            final isSeller = !isBuyer && order.isSellerForUser(currentUserId);
+
+            return RefreshIndicator(
+              onRefresh: () => vm.loadOrderDetail(widget.orderId),
+              color: AppColors.primaryContainer,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                children: [
+                  if (vm.isLoadingDetail)
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 12),
+                      child: LinearProgressIndicator(
+                        minHeight: 2,
+                        color: AppColors.primaryContainer,
+                      ),
+                    ),
+                  _buildHeaderCard(order),
+                  const SizedBox(height: 14),
+                  if (isBuyer)
+                    _buildBuyerNextStepSection(order, vm)
+                  else if (isSeller)
+                    _buildSellerNextStepSection(order, vm),
+                  if (isBuyer || isSeller) const SizedBox(height: 14),
+                  _buildMaterialSummaryCard(order, isBuyer: isBuyer),
+                  const SizedBox(height: 14),
+                  _buildShippingAndAddressCard(order, isSeller: isSeller),
+                  const SizedBox(height: 14),
+                  _buildPaymentSummaryCard(order),
+                  if (order.statusHistories.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    _buildCollapsibleTimelineCard(order),
+                  ],
+                ],
               ),
             );
-          }
-
-          final currentUserId = widget.authViewModel?.currentUser?.id;
-          final isBuyer = order.isBuyerForUser(currentUserId);
-          final isSeller = !isBuyer && order.isSellerForUser(currentUserId);
-
-          return RefreshIndicator(
-            onRefresh: () => vm.loadOrderDetail(widget.orderId),
-            color: AppColors.primaryContainer,
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-              children: [
-                if (vm.isLoadingDetail)
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 12),
-                    child: LinearProgressIndicator(
-                      minHeight: 2,
-                      color: AppColors.primaryContainer,
-                    ),
-                  ),
-                _buildHeaderCard(order),
-                const SizedBox(height: 14),
-                _buildMaterialSnapshotCard(order, isBuyer: isBuyer),
-                const SizedBox(height: 14),
-                _buildShippingAndTrackingCard(order),
-                const SizedBox(height: 14),
-                _buildAddressPrivacyCard(order, isSeller: isSeller),
-                const SizedBox(height: 14),
-                _buildPaymentSummaryCard(order),
-                const SizedBox(height: 16),
-                if (isBuyer)
-                  _buildBuyerActionSection(order, vm)
-                else if (isSeller)
-                  _buildSellerActionSection(order, vm),
-                if (order.statusHistories.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  _buildTimelineCard(order),
-                ],
-              ],
-            ),
-          );
-        },
+          },
+        ),
       ),
     );
   }
@@ -445,27 +466,43 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
               Expanded(
                 child: Text(
                   order.orderNumber,
-                  style: AppTypography.headlineSm(color: AppColors.onSurface),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.labelLg(
+                    color: AppColors.onSurface,
+                  ).copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
+              IconButton(
+                tooltip: 'Salin nomor pesanan',
+                onPressed: () => _copyOrderNumber(order.orderNumber),
+                icon: const Icon(
+                  Icons.copy_outlined,
+                  size: 18,
+                  color: AppColors.primaryContainer,
+                ),
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                padding: const EdgeInsets.all(8),
+              ),
+              const SizedBox(width: 4),
               _statusBadge(order.statusLabel, statusStyle.$1, statusStyle.$2),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Wrap(
-            spacing: 10,
-            runSpacing: 6,
+            spacing: 8,
+            runSpacing: 4,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
                 'Pembayaran: ${order.paymentStatusLabel}',
-                style: AppTypography.labelMd(
+                style: AppTypography.bodySm(
                   color: AppColors.onSurfaceVariant,
                 ).copyWith(fontWeight: FontWeight.w600),
               ),
               if (order.createdAt != null)
                 Text(
-                  '• ${_formatDateTime(order.createdAt!)}',
+                  '· ${DisplayFormatters.formatDateTime(order.createdAt!)}',
                   style: AppTypography.bodySm(color: AppColors.outline),
                 ),
             ],
@@ -474,7 +511,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
             const SizedBox(height: 10),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
                 color: const Color(0xFFFFF3E0),
                 borderRadius: BorderRadius.circular(10),
@@ -489,7 +526,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Batas pembayaran: ${_formatDateTime(order.paymentExpiresAt!)}',
+                      'Batas pembayaran: ${DisplayFormatters.formatDateTime(order.paymentExpiresAt!)}',
                       style: AppTypography.bodySm(
                         color: const Color(0xFFE65100),
                       ).copyWith(fontWeight: FontWeight.w600),
@@ -499,318 +536,41 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
               ),
             ),
           ],
-          if ((order.isCancelled || order.isExpired) &&
-              order.cancellationReason != null) ...[
-            const SizedBox(height: 10),
-            Text(
-              'Alasan: ${order.cancellationReason!}',
-              style: AppTypography.bodySm(color: AppColors.error),
-            ),
-          ],
         ],
       ),
     );
   }
 
-  Widget _buildMaterialSnapshotCard(OrderItem order, {required bool isBuyer}) {
-    final counterpartyLabel = isBuyer ? 'Penjual' : 'Pembeli';
-    final counterpartyName = isBuyer
-        ? (order.sellerName ?? 'Penjual #${order.sellerId}')
-        : (order.buyerName ?? 'Pembeli #${order.buyerId}');
-
-    return _sectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Snapshot Material (Satu Lot)',
-            style: AppTypography.labelLg(color: AppColors.onSurface),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildOrderThumbnail(order.listing.imageUrl),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      order.listing.name,
-                      style: AppTypography.labelLg(color: AppColors.onSurface),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: [
-                        _chipTag(order.listing.categoryLabel),
-                        _chipTag(
-                          '${order.listing.weightKg.toStringAsFixed(1)} kg',
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '$counterpartyLabel: $counterpartyName',
-                      style: AppTypography.bodySm(
-                        color: AppColors.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          if (order.buyerNote != null && order.buyerNote!.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            const Divider(height: 1),
-            const SizedBox(height: 10),
-            Text(
-              'Catatan Pembeli: ${order.buyerNote!}',
-              style: AppTypography.bodySm(color: AppColors.onSurfaceVariant),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildShippingAndTrackingCard(OrderItem order) {
-    return _sectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.local_shipping_outlined,
-                size: 20,
-                color: AppColors.primaryContainer,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Pengiriman & Resi',
-                style: AppTypography.labelLg(color: AppColors.onSurface),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _infoRow('Kurir', order.courierSummary),
-          if (order.estimatedEtd != null)
-            _infoRow('Estimasi Tiba', order.estimatedEtd!),
-          if (order.listing.originLabel != null)
-            _infoRow('Asal Pengiriman', order.listing.originLabel!),
-          if (order.trackingNumber != null &&
-              order.trackingNumber!.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AppColors.outlineVariant.withValues(alpha: 0.7),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Nomor Resi',
-                          style: AppTypography.labelSm(color: AppColors.outline),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          order.trackingNumber!,
-                          style: AppTypography.labelLg(
-                            color: AppColors.primary,
-                          ).copyWith(fontWeight: FontWeight.w700),
-                        ),
-                      ],
-                    ),
-                  ),
-                  TextButton.icon(
-                    onPressed: () => _copyTrackingNumber(order.trackingNumber!),
-                    style: TextButton.styleFrom(
-                      minimumSize: const Size(48, 48),
-                      foregroundColor: AppColors.primaryContainer,
-                    ),
-                    icon: const Icon(Icons.copy_outlined, size: 18),
-                    label: const Text('Salin'),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          if (order.shipmentNotes != null &&
-              order.shipmentNotes!.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            _infoRow('Catatan Pengiriman', order.shipmentNotes!),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAddressPrivacyCard(OrderItem order, {required bool isSeller}) {
-    final addr = order.shippingAddress;
-    return _sectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.location_on_outlined,
-                size: 20,
-                color: AppColors.primaryContainer,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Alamat Tujuan Pengiriman',
-                style: AppTypography.labelLg(color: AppColors.onSurface),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          if (addr == null)
-            Text(
-              'Informasi alamat tidak tersedia.',
-              style: AppTypography.bodySm(color: AppColors.onSurfaceVariant),
-            )
-          else if (addr.hasFullShippingDetails) ...[
-            if (addr.recipientName != null)
-              Text(
-                addr.recipientName!,
-                style: AppTypography.labelMd(
-                  color: AppColors.onSurface,
-                ).copyWith(fontWeight: FontWeight.w700),
-              ),
-            if (addr.recipientPhone != null) ...[
-              const SizedBox(height: 2),
-              Text(
-                addr.recipientPhone!,
-                style: AppTypography.bodySm(color: AppColors.onSurfaceVariant),
-              ),
-            ],
-            if (addr.destinationLabel != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                addr.destinationLabel!,
-                style: AppTypography.bodySm(
-                  color: AppColors.secondary,
-                ).copyWith(fontWeight: FontWeight.w600),
-              ),
-            ],
-            if (addr.addressDetail != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                addr.addressDetail!,
-                style: AppTypography.bodySm(color: AppColors.onSurface),
-              ),
-            ],
-            if (addr.postalCode != null) ...[
-              const SizedBox(height: 2),
-              Text(
-                'Kode Pos: ${addr.postalCode!}',
-                style: AppTypography.bodySm(color: AppColors.onSurfaceVariant),
-              ),
-            ],
-            if (addr.deliveryNote != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                'Catatan Alamat: ${addr.deliveryNote!}',
-                style: AppTypography.bodySm(color: AppColors.onSurfaceVariant),
-              ),
-            ],
-          ] else ...[
-            if (addr.destinationLabel != null)
-              Text(
-                addr.destinationLabel!,
-                style: AppTypography.bodyMd(
-                  color: AppColors.onSurface,
-                ).copyWith(fontWeight: FontWeight.w600),
-              ),
-            const SizedBox(height: 8),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceContainer,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                isSeller
-                    ? 'Detail alamat lengkap dan nomor telepon pembeli disembunyikan hingga pembayaran terverifikasi.'
-                    : 'Detail alamat tujuan diringkas untuk status pesanan ini.',
-                style: AppTypography.bodySm(color: AppColors.onSurfaceVariant),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPaymentSummaryCard(OrderItem order) {
-    return _sectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Rincian Pembayaran',
-            style: AppTypography.labelLg(color: AppColors.onSurface),
-          ),
-          const SizedBox(height: 12),
-          _priceRow('Harga Material', order.formattedItemPrice),
-          const SizedBox(height: 6),
-          _priceRow('Ongkos Kirim', order.formattedShippingCost),
-          const SizedBox(height: 6),
-          _priceRow('Biaya Platform', order.formattedPlatformFee),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 10),
-            child: Divider(height: 1),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Total Pembayaran (${order.currency})',
-                style: AppTypography.labelLg(color: AppColors.onSurface),
-              ),
-              Text(
-                order.formattedTotalAmount,
-                style: AppTypography.headlineSm(
-                  color: AppColors.primaryContainer,
-                ).copyWith(fontWeight: FontWeight.w800),
-              ),
-            ],
-          ),
-          if (order.paidAt != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Terverifikasi lunas pada ${_formatDateTime(order.paidAt!)}',
-              style: AppTypography.bodySm(color: AppColors.primary),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBuyerActionSection(OrderItem order, OrderViewModel vm) {
+  Widget _buildBuyerNextStepSection(OrderItem order, OrderViewModel vm) {
     if (order.isPendingPayment) {
-      return _sectionCard(
+      return _highlightedActionCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.payments_outlined,
+                  size: 20,
+                  color: AppColors.primaryContainer,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Menunggu Pembayaran',
+                    style: AppTypography.labelLg(
+                      color: AppColors.onSurface,
+                    ).copyWith(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Selesaikan pembayaran untuk melanjutkan pesanan.',
+              style: AppTypography.bodySm(color: AppColors.onSurfaceVariant),
+            ),
+            const SizedBox(height: 14),
             SizedBox(
               height: 48,
               child: ElevatedButton.icon(
@@ -830,7 +590,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
                 label: Text(
                   (_isLaunchingPayment || vm.isRetryingPayment)
                       ? 'Membuka Midtrans...'
-                      : 'Lanjutkan Pembayaran',
+                      : 'Bayar Sekarang',
                   style: AppTypography.labelLg(
                     color: Colors.white,
                   ).copyWith(fontWeight: FontWeight.w700),
@@ -838,21 +598,22 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryContainer,
                   foregroundColor: Colors.white,
+                  minimumSize: const Size(0, 48),
                   shape: const StadiumBorder(),
                 ),
               ),
             ),
             const SizedBox(height: 10),
             SizedBox(
-              height: 48,
+              height: 44,
               child: OutlinedButton.icon(
                 onPressed: vm.isRefreshingPayment
                     ? null
                     : () => _handleRefreshPayment(order),
                 icon: vm.isRefreshingPayment
                     ? const SizedBox(
-                        width: 18,
-                        height: 18,
+                        width: 16,
+                        height: 16,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
                           color: AppColors.primaryContainer,
@@ -875,17 +636,20 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
                 ),
               ),
             ),
-            const SizedBox(height: 10),
-            SizedBox(
-              height: 48,
-              child: OutlinedButton.icon(
+            const SizedBox(height: 6),
+            Center(
+              child: TextButton.icon(
                 onPressed: vm.isCancellingOrder
                     ? null
                     : () => _handleCancelOrder(order),
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(48, 44),
+                  foregroundColor: AppColors.error,
+                ),
                 icon: vm.isCancellingOrder
                     ? const SizedBox(
-                        width: 18,
-                        height: 18,
+                        width: 16,
+                        height: 16,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
                           color: AppColors.error,
@@ -898,13 +662,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
                     color: AppColors.error,
                   ).copyWith(fontWeight: FontWeight.w600),
                 ),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.error,
-                  side: const BorderSide(color: AppColors.error),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
               ),
             ),
           ],
@@ -915,22 +672,46 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
     if (order.isPaid) {
       return _statusNoticeCard(
         icon: Icons.inventory_2_outlined,
-        title: 'Menunggu Penjual Mengirim Pesanan',
+        title: 'Menunggu Penjual Mengirim',
         subtitle:
-            'Pembayaran Anda telah terverifikasi. Penjual sedang menyiapkan pengiriman paket.',
+            'Pembayaran telah terverifikasi. Penjual sedang menyiapkan pengiriman.',
       );
     }
 
     if (order.isShipped) {
-      return _sectionCard(
+      return _highlightedActionCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.local_shipping_outlined,
+                  size: 20,
+                  color: AppColors.primaryContainer,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Pesanan Sedang Dikirim',
+                    style: AppTypography.labelLg(
+                      color: AppColors.onSurface,
+                    ).copyWith(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
             Text(
-              'Paket sedang dikirim oleh penjual. Konfirmasi setelah barang Anda terima dengan baik.',
+              'Konfirmasi setelah material Anda terima dengan baik.',
               style: AppTypography.bodySm(color: AppColors.onSurfaceVariant),
             ),
-            const SizedBox(height: 12),
+            if (order.trackingNumber != null &&
+                order.trackingNumber!.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              _buildTrackingSummaryPill(order),
+            ],
+            const SizedBox(height: 14),
             SizedBox(
               height: 48,
               child: ElevatedButton.icon(
@@ -958,6 +739,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryContainer,
                   foregroundColor: Colors.white,
+                  minimumSize: const Size(0, 48),
                   shape: const StadiumBorder(),
                 ),
               ),
@@ -972,39 +754,99 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
         icon: Icons.verified_outlined,
         title: 'Pesanan Selesai',
         subtitle: order.completedAt != null
-            ? 'Dikonfirmasi selesai pada ${_formatDateTime(order.completedAt!)}.'
+            ? 'Dikonfirmasi selesai pada ${DisplayFormatters.formatDateTime(order.completedAt!)}.'
             : 'Transaksi telah selesai.',
+      );
+    }
+
+    if (order.isCancelled || order.isExpired) {
+      return _statusNoticeCard(
+        icon: Icons.cancel_outlined,
+        title: order.statusLabel,
+        subtitle: order.cancellationReason != null &&
+                order.cancellationReason!.isNotEmpty
+            ? 'Alasan: ${order.cancellationReason!}'
+            : (order.isExpired
+                  ? 'Batas waktu pembayaran telah berakhir.'
+                  : 'Pesanan ini telah dibatalkan.'),
+        isError: true,
       );
     }
 
     return const SizedBox.shrink();
   }
 
-  Widget _buildSellerActionSection(OrderItem order, OrderViewModel vm) {
+  Widget _buildSellerNextStepSection(OrderItem order, OrderViewModel vm) {
     if (order.isPendingPayment) {
       return _statusNoticeCard(
         icon: Icons.hourglass_bottom_outlined,
         title: 'Menunggu Pembayaran Pembeli',
         subtitle:
-            'Jangan kirim barang sebelum pembayaran terverifikasi oleh sistem.',
+            'Pesanan akan tersedia untuk diproses setelah pembayaran terverifikasi.',
       );
     }
 
     if (order.isPaid) {
-      return _sectionCard(
+      return _highlightedActionCard(
         child: Form(
           key: _shipFormKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                'Input Resi & Kirim Pesanan',
-                style: AppTypography.headlineSm(color: AppColors.onSurface),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.local_shipping_outlined,
+                    size: 20,
+                    color: AppColors.primaryContainer,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Pesanan Siap Dikirim',
+                      style: AppTypography.labelLg(
+                        color: AppColors.onSurface,
+                      ).copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Text(
-                'Kirim paket menggunakan layanan ${order.courierSummary}, lalu masukkan nomor resi pengiriman.',
+                'Pembayaran sudah terverifikasi. Silakan siapkan pengiriman.',
                 style: AppTypography.bodySm(color: AppColors.onSurfaceVariant),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: AppColors.outlineVariant.withValues(alpha: 0.7),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.local_shipping,
+                      size: 16,
+                      color: AppColors.primaryContainer,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Kurir dipilih: ${order.courierSummary}',
+                        style: AppTypography.labelMd(
+                          color: AppColors.onSurface,
+                        ).copyWith(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -1079,6 +921,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryContainer,
                     foregroundColor: Colors.white,
+                    minimumSize: const Size(0, 48),
                     shape: const StadiumBorder(),
                   ),
                 ),
@@ -1092,8 +935,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
     if (order.isShipped) {
       return _statusNoticeCard(
         icon: Icons.local_shipping_outlined,
-        title: 'Dalam Pengiriman',
-        subtitle: 'Menunggu pembeli mengonfirmasi penerimaan paket.',
+        title: 'Pesanan Sedang Dikirim',
+        subtitle: order.trackingNumber != null &&
+                order.trackingNumber!.isNotEmpty
+            ? 'Resi ${order.trackingNumber!} (${order.courierSummary}). Menunggu pembeli mengonfirmasi penerimaan paket.'
+            : 'Menunggu pembeli mengonfirmasi penerimaan paket.',
       );
     }
 
@@ -1105,79 +951,550 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
       );
     }
 
+    if (order.isCancelled || order.isExpired) {
+      return _statusNoticeCard(
+        icon: Icons.cancel_outlined,
+        title: order.statusLabel,
+        subtitle: order.cancellationReason != null &&
+                order.cancellationReason!.isNotEmpty
+            ? 'Alasan: ${order.cancellationReason!}'
+            : (order.isExpired
+                  ? 'Pesanan kedaluwarsa karena belum dibayar.'
+                  : 'Pesanan ini telah dibatalkan.'),
+        isError: true,
+      );
+    }
+
     return const SizedBox.shrink();
   }
 
-  Widget _buildTimelineCard(OrderItem order) {
+  Widget _buildTrackingSummaryPill(OrderItem order) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.outlineVariant.withValues(alpha: 0.7),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  order.courierSummary,
+                  style: AppTypography.labelSm(
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  order.trackingNumber!,
+                  style: AppTypography.labelLg(
+                    color: AppColors.primary,
+                  ).copyWith(fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+          ),
+          TextButton.icon(
+            onPressed: () => _copyTrackingNumber(order.trackingNumber!),
+            style: TextButton.styleFrom(
+              minimumSize: const Size(48, 44),
+              foregroundColor: AppColors.primaryContainer,
+            ),
+            icon: const Icon(Icons.copy_outlined, size: 18),
+            label: const Text('Salin'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMaterialSummaryCard(OrderItem order, {required bool isBuyer}) {
+    final counterpartyLabel = isBuyer ? 'Penjual' : 'Pembeli';
+    final counterpartyName = isBuyer
+        ? (order.sellerName ?? 'Penjual #${order.sellerId}')
+        : (order.buyerName ?? 'Pembeli #${order.buyerId}');
+
     return _sectionCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Riwayat Status Pesanan',
-            style: AppTypography.labelLg(color: AppColors.onSurface),
+            'Ringkasan Material',
+            style: AppTypography.labelLg(
+              color: AppColors.onSurface,
+            ).copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 12),
-          ...order.statusHistories.asMap().entries.map((entry) {
-            final idx = entry.key;
-            final h = entry.value;
-            final isLast = idx == order.statusHistories.length - 1;
-            return Padding(
-              padding: EdgeInsets.only(bottom: isLast ? 0 : 12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Column(
-                    children: [
-                      Container(
-                        width: 10,
-                        height: 10,
-                        margin: const EdgeInsets.only(top: 4),
-                        decoration: BoxDecoration(
-                          color: isLast
-                              ? AppColors.primaryContainer
-                              : AppColors.outlineVariant,
-                          shape: BoxShape.circle,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildOrderThumbnail(order.listing.imageUrl),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      order.listing.name,
+                      style: AppTypography.labelLg(
+                        color: AppColors.onSurface,
+                      ).copyWith(fontWeight: FontWeight.w700),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        _chipTag(order.listing.categoryLabel),
+                        _chipTag(
+                          '${order.listing.weightKg.toStringAsFixed(1)} kg',
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '$counterpartyLabel: $counterpartyName',
+                      style: AppTypography.bodySm(
+                        color: AppColors.onSurfaceVariant,
                       ),
-                    ],
-                  ),
-                  const SizedBox(width: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (order.buyerNote != null && order.buyerNote!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 10),
+            Text(
+              'Catatan Pembeli',
+              style: AppTypography.labelSm(
+                color: AppColors.onSurfaceVariant,
+              ).copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              order.buyerNote!,
+              style: AppTypography.bodySm(color: AppColors.onSurface),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShippingAndAddressCard(
+    OrderItem order, {
+    required bool isSeller,
+  }) {
+    final addr = order.shippingAddress;
+    final hasTracking =
+        order.trackingNumber != null && order.trackingNumber!.isNotEmpty;
+    final hasShipmentNotes =
+        order.shipmentNotes != null && order.shipmentNotes!.isNotEmpty;
+
+    return _sectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.local_shipping_outlined,
+                size: 20,
+                color: AppColors.primaryContainer,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Pengiriman & Alamat Tujuan',
+                  style: AppTypography.labelLg(
+                    color: AppColors.onSurface,
+                  ).copyWith(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _infoRow('Kurir', order.courierSummary),
+          _infoRow(
+            'Estimasi Tiba',
+            DisplayFormatters.formatIndonesianEtd(order.estimatedEtd),
+          ),
+          if (order.listing.originLabel != null &&
+              order.listing.originLabel!.trim().isNotEmpty)
+            _infoRow(
+              'Asal Pengiriman',
+              DisplayFormatters.deduplicateLocationLabel(
+                order.listing.originLabel!,
+              ),
+            ),
+          if (order.shippedAt != null)
+            _infoRow(
+              'Dikirim Pada',
+              DisplayFormatters.formatDateTime(order.shippedAt!),
+            ),
+          if (hasTracking) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.outlineVariant.withValues(alpha: 0.7),
+                ),
+              ),
+              child: Row(
+                children: [
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          h.toStatusLabel,
-                          style: AppTypography.labelMd(
-                            color: AppColors.onSurface,
+                          'Nomor Resi',
+                          style: AppTypography.labelSm(color: AppColors.outline),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          order.trackingNumber!,
+                          style: AppTypography.labelLg(
+                            color: AppColors.primary,
                           ).copyWith(fontWeight: FontWeight.w700),
                         ),
-                        if (h.reason != null && h.reason!.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            h.reason!,
-                            style: AppTypography.bodySm(
-                              color: AppColors.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                        if (h.createdAt != null) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            _formatDateTime(h.createdAt!),
-                            style: AppTypography.labelSm(
-                              color: AppColors.outline,
-                            ),
-                          ),
-                        ],
                       ],
                     ),
                   ),
+                  TextButton.icon(
+                    onPressed: () => _copyTrackingNumber(order.trackingNumber!),
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(48, 44),
+                      foregroundColor: AppColors.primaryContainer,
+                    ),
+                    icon: const Icon(Icons.copy_outlined, size: 18),
+                    label: const Text('Salin'),
+                  ),
                 ],
               ),
-            );
-          }),
+            ),
+          ],
+          if (hasShipmentNotes) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Catatan Pengiriman',
+              style: AppTypography.labelSm(
+                color: AppColors.onSurfaceVariant,
+              ).copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              order.shipmentNotes!,
+              style: AppTypography.bodySm(color: AppColors.onSurface),
+            ),
+          ],
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 14),
+            child: Divider(height: 1),
+          ),
+          Row(
+            children: [
+              const Icon(
+                Icons.location_on_outlined,
+                size: 18,
+                color: AppColors.primaryContainer,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Alamat Tujuan',
+                style: AppTypography.labelMd(
+                  color: AppColors.onSurface,
+                ).copyWith(fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (addr == null)
+            Text(
+              'Informasi alamat tidak tersedia.',
+              style: AppTypography.bodySm(color: AppColors.onSurfaceVariant),
+            )
+          else if (addr.hasFullShippingDetails) ...[
+            if (addr.recipientName != null)
+              Text(
+                addr.recipientName!,
+                style: AppTypography.labelMd(
+                  color: AppColors.onSurface,
+                ).copyWith(fontWeight: FontWeight.w700),
+              ),
+            if (addr.recipientPhone != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                PhoneUtils.formatForDisplay(addr.recipientPhone),
+                style: AppTypography.bodySm(color: AppColors.onSurfaceVariant),
+              ),
+            ],
+            if (addr.destinationLabel != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                DisplayFormatters.deduplicateLocationLabel(
+                  addr.destinationLabel!,
+                ),
+                style: AppTypography.bodySm(
+                  color: AppColors.secondary,
+                ).copyWith(fontWeight: FontWeight.w600),
+              ),
+            ],
+            if (addr.addressDetail != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                addr.addressDetail!,
+                style: AppTypography.bodySm(color: AppColors.onSurface),
+              ),
+            ],
+            if (addr.postalCode != null &&
+                addr.postalCode!.trim().isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(
+                'Kode Pos: ${addr.postalCode!}',
+                style: AppTypography.bodySm(color: AppColors.onSurfaceVariant),
+              ),
+            ],
+            if (addr.deliveryNote != null &&
+                addr.deliveryNote!.trim().isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Catatan Alamat',
+                style: AppTypography.labelSm(
+                  color: AppColors.onSurfaceVariant,
+                ).copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                addr.deliveryNote!,
+                style: AppTypography.bodySm(color: AppColors.onSurface),
+              ),
+            ],
+          ] else ...[
+            if (addr.destinationLabel != null)
+              Text(
+                DisplayFormatters.deduplicateLocationLabel(
+                  addr.destinationLabel!,
+                ),
+                style: AppTypography.bodyMd(
+                  color: AppColors.onSurface,
+                ).copyWith(fontWeight: FontWeight.w600),
+              ),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceContainer,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                isSeller
+                    ? 'Detail alamat lengkap dan nomor telepon pembeli disembunyikan hingga pembayaran terverifikasi.'
+                    : 'Detail alamat tujuan diringkas untuk status pesanan ini.',
+                style: AppTypography.bodySm(color: AppColors.onSurfaceVariant),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentSummaryCard(OrderItem order) {
+    return _sectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Rincian Pembayaran',
+            style: AppTypography.labelLg(
+              color: AppColors.onSurface,
+            ).copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 12),
+          _priceRow('Harga Material', order.formattedItemPrice),
+          const SizedBox(height: 8),
+          _priceRow('Ongkos Kirim', order.formattedShippingCost),
+          if (order.platformFee > 0) ...[
+            const SizedBox(height: 8),
+            _priceRow('Biaya Platform', order.formattedPlatformFee),
+          ],
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Divider(height: 1),
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Total Pembayaran (${order.currency})',
+                  style: AppTypography.labelLg(
+                    color: AppColors.onSurface,
+                  ).copyWith(fontWeight: FontWeight.w700),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                order.formattedTotalAmount,
+                style: AppTypography.headlineSm(
+                  color: AppColors.primaryContainer,
+                ).copyWith(fontWeight: FontWeight.w800),
+              ),
+            ],
+          ),
+          if (order.paidAt != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Terverifikasi lunas pada ${DisplayFormatters.formatDateTime(order.paidAt!)}',
+              style: AppTypography.bodySm(color: AppColors.primary),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCollapsibleTimelineCard(OrderItem order) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.outlineVariant.withValues(alpha: 0.55),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: () {
+              setState(() => _isHistoryExpanded = !_isHistoryExpanded);
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.history_outlined,
+                    size: 20,
+                    color: AppColors.primaryContainer,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Riwayat Status Pesanan',
+                      style: AppTypography.labelLg(
+                        color: AppColors.onSurface,
+                      ).copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceContainer,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      '${order.statusHistories.length}',
+                      style: AppTypography.labelSm(
+                        color: AppColors.onSurfaceVariant,
+                      ).copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    _isHistoryExpanded ? Icons.expand_less : Icons.expand_more,
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_isHistoryExpanded) ...[
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: order.statusHistories.asMap().entries.map((entry) {
+                  final idx = entry.key;
+                  final h = entry.value;
+                  final isLast = idx == order.statusHistories.length - 1;
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: isLast ? 0 : 12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 10,
+                          height: 10,
+                          margin: const EdgeInsets.only(top: 4),
+                          decoration: BoxDecoration(
+                            color: isLast
+                                ? AppColors.primaryContainer
+                                : AppColors.outlineVariant,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                h.toStatusLabel,
+                                style: AppTypography.labelMd(
+                                  color: AppColors.onSurface,
+                                ).copyWith(fontWeight: FontWeight.w700),
+                              ),
+                              if (h.reason != null && h.reason!.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  h.reason!,
+                                  style: AppTypography.bodySm(
+                                    color: AppColors.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                              if (h.createdAt != null) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  DisplayFormatters.formatDateTime(
+                                    h.createdAt!,
+                                  ),
+                                  style: AppTypography.labelSm(
+                                    color: AppColors.outline,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1191,7 +1508,23 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
         color: AppColors.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: AppColors.outlineVariant.withValues(alpha: 0.6),
+          color: AppColors.outlineVariant.withValues(alpha: 0.55),
+        ),
+      ),
+      child: child,
+    );
+  }
+
+  Widget _highlightedActionCard({required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.primaryContainer.withValues(alpha: 0.35),
+          width: 1.2,
         ),
       ),
       child: child,
@@ -1202,21 +1535,28 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
     required IconData icon,
     required String title,
     required String subtitle,
+    bool isError = false,
   }) {
+    final fg = isError ? AppColors.error : AppColors.primary;
+    final bg = isError
+        ? AppColors.errorContainer.withValues(alpha: 0.55)
+        : AppColors.secondaryContainer.withValues(alpha: 0.42);
+    final border = isError
+        ? AppColors.error.withValues(alpha: 0.3)
+        : AppColors.primaryContainer.withValues(alpha: 0.3);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.secondaryContainer.withValues(alpha: 0.4),
+        color: bg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.primaryContainer.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: border),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppColors.primary, size: 22),
+          Icon(icon, color: fg, size: 22),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -1224,12 +1564,16 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
               children: [
                 Text(
                   title,
-                  style: AppTypography.labelLg(color: AppColors.primary),
+                  style: AppTypography.labelLg(
+                    color: fg,
+                  ).copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: AppTypography.bodySm(color: AppColors.onSurfaceVariant),
+                  style: AppTypography.bodySm(
+                    color: AppColors.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -1243,8 +1587,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: SizedBox(
-        width: 64,
-        height: 64,
+        width: 56,
+        height: 56,
         child: (imageUrl != null && imageUrl.isNotEmpty)
             ? Image.network(
                 imageUrl,
@@ -1282,17 +1626,18 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
 
   Widget _infoRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 118,
+            width: 112,
             child: Text(
               label,
               style: AppTypography.bodySm(color: AppColors.onSurfaceVariant),
             ),
           ),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               value,
@@ -1308,12 +1653,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
 
   Widget _priceRow(String label, String value) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: AppTypography.bodyMd(color: AppColors.onSurfaceVariant),
+        Expanded(
+          child: Text(
+            label,
+            style: AppTypography.bodyMd(color: AppColors.onSurfaceVariant),
+          ),
         ),
+        const SizedBox(width: 8),
         Text(
           value,
           style: AppTypography.bodyMd(
@@ -1355,16 +1702,5 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
       default:
         return (AppColors.onSurfaceVariant, AppColors.surfaceContainer);
     }
-  }
-
-  String _formatDateTime(DateTime dt) {
-    final local = dt.toLocal();
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
-    ];
-    final hh = local.hour.toString().padLeft(2, '0');
-    final mm = local.minute.toString().padLeft(2, '0');
-    return '${local.day} ${months[local.month - 1]} ${local.year} · $hh:$mm';
   }
 }

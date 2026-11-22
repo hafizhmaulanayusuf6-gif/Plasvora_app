@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import '../../core/network/api_client.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import '../../core/utils/display_formatters.dart';
 import '../../core/utils/payment_launcher.dart';
-import '../../core/widgets/plasvora_header.dart';
+import '../../core/utils/phone_utils.dart';
+import '../../core/widgets/simple_page_app_bar.dart';
 import '../../models/material_listing.dart';
 import '../../models/shipping_destination.dart';
 import '../../models/user_address.dart';
@@ -43,12 +45,23 @@ class CheckoutScreen extends StatefulWidget {
   State<CheckoutScreen> createState() => _CheckoutScreenState();
 }
 
+class _RankedCourierOption {
+  final ShippingCostOption option;
+  final String? badgeLabel;
+
+  const _RankedCourierOption({
+    required this.option,
+    this.badgeLabel,
+  });
+}
+
 class _CheckoutScreenState extends State<CheckoutScreen> {
   final TextEditingController _buyerNoteController = TextEditingController();
 
   ShippingEstimateResult? _estimateResult;
   ShippingCostOption? _selectedOption;
   bool _isEstimating = false;
+  bool _showAllCouriers = false;
   String? _estimateError;
   int? _lastAddressId;
   int _estimateVersion = 0;
@@ -113,6 +126,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         _selectedOption = null;
         _estimateError = null;
         _isEstimating = false;
+        _showAllCouriers = false;
       });
       if (nextAddress != null) {
         _fetchShippingEstimate(nextAddress);
@@ -129,6 +143,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _isEstimating = true;
       _estimateError = null;
       _selectedOption = null;
+      _showAllCouriers = false;
     });
 
     try {
@@ -183,6 +198,74 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ),
       ),
     );
+  }
+
+  bool _isSameOption(ShippingCostOption a, ShippingCostOption b) {
+    return a.courierCode.toLowerCase() == b.courierCode.toLowerCase() &&
+        a.service.toUpperCase() == b.service.toUpperCase() &&
+        a.cost == b.cost;
+  }
+
+  /// Mengurutkan opsi kurir secara transparan dari data aktual backend:
+  /// 1) Opsi termurah ("Termurah" jika ada >= 2 opsi)
+  /// 2) Opsi dengan estimasi ETD aktual yang benar-benar lebih cepat ("Estimasi Lebih Cepat")
+  /// 3) Opsi lainnya diurutkan dari biaya terendah
+  List<_RankedCourierOption> _rankCourierOptions(
+    List<ShippingCostOption> rawOptions,
+  ) {
+    if (rawOptions.isEmpty) return const [];
+
+    final byCost = List<ShippingCostOption>.from(rawOptions)
+      ..sort((a, b) {
+        final costCmp = a.cost.compareTo(b.cost);
+        if (costCmp != 0) return costCmp;
+        final daysA = DisplayFormatters.parseMinEtdDays(a.etd) ?? 9999;
+        final daysB = DisplayFormatters.parseMinEtdDays(b.etd) ?? 9999;
+        return daysA.compareTo(daysB);
+      });
+
+    final cheapest = byCost.first;
+    final cheapestDays = DisplayFormatters.parseMinEtdDays(cheapest.etd);
+
+    ShippingCostOption? faster;
+    int? fasterDays;
+    if (cheapestDays != null) {
+      for (final opt in byCost.skip(1)) {
+        final optDays = DisplayFormatters.parseMinEtdDays(opt.etd);
+        if (optDays != null && optDays < cheapestDays) {
+          if (faster == null ||
+              optDays < fasterDays! ||
+              (optDays == fasterDays && opt.cost < faster.cost)) {
+            faster = opt;
+            fasterDays = optDays;
+          }
+        }
+      }
+    }
+
+    final ranked = <_RankedCourierOption>[
+      _RankedCourierOption(
+        option: cheapest,
+        badgeLabel: byCost.length >= 2 ? 'Termurah' : null,
+      ),
+    ];
+
+    if (faster != null) {
+      ranked.add(
+        _RankedCourierOption(
+          option: faster,
+          badgeLabel: 'Estimasi Lebih Cepat',
+        ),
+      );
+    }
+
+    for (final opt in byCost) {
+      if (_isSameOption(opt, cheapest)) continue;
+      if (faster != null && _isSameOption(opt, faster)) continue;
+      ranked.add(_RankedCourierOption(option: opt));
+    }
+
+    return ranked;
   }
 
   String _resolveIdempotencyKey({
@@ -272,6 +355,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         final selectedAddress = addrVm.selectedAddress;
         final shippingCost = _selectedOption?.cost ?? 0;
         final previewTotal = widget.listing.price + shippingCost;
+        final displayedTotal = _selectedOption != null
+            ? previewTotal
+            : widget.listing.price;
         final canSubmit =
             selectedAddress != null &&
             _selectedOption != null &&
@@ -280,58 +366,62 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
         return Scaffold(
           backgroundColor: AppColors.surface,
-          appBar: const PlasvoraHeader(
-            customTitle: 'Checkout Pesanan',
-            showBack: true,
-          ),
-          body: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-            children: [
-              _buildMaterialSummaryCard(),
-              const SizedBox(height: 14),
-              _buildAddressCard(addrVm, selectedAddress),
-              const SizedBox(height: 14),
-              _buildCourierSelectionCard(selectedAddress),
-              const SizedBox(height: 14),
-              _buildBuyerNoteCard(orderVm),
-              const SizedBox(height: 14),
-              _buildPricingSummaryCard(shippingCost, previewTotal),
-              if (orderVm.errorMessage != null) ...[
-                const SizedBox(height: 14),
-                _buildCheckoutErrorBanner(orderVm),
+          appBar: const SimplePageAppBar(title: 'Checkout Pesanan'),
+          body: SafeArea(
+            top: false,
+            bottom: false,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              children: [
+                _buildMaterialSummaryCard(),
+                const SizedBox(height: 16),
+                _buildAddressCard(addrVm, selectedAddress),
+                const SizedBox(height: 16),
+                _buildCourierSelectionCard(selectedAddress),
+                const SizedBox(height: 16),
+                _buildBuyerNoteCard(orderVm),
+                const SizedBox(height: 16),
+                _buildPricingSummaryCard(shippingCost, previewTotal),
+                if (orderVm.errorMessage != null) ...[
+                  const SizedBox(height: 16),
+                  _buildCheckoutErrorBanner(orderVm),
+                ],
               ],
-            ],
+            ),
           ),
           bottomNavigationBar: SafeArea(
+            top: false,
             child: Container(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
               decoration: BoxDecoration(
                 color: AppColors.surfaceContainerLowest,
                 border: Border(
                   top: BorderSide(
-                    color: AppColors.outlineVariant.withValues(alpha: 0.7),
+                    color: AppColors.outlineVariant.withValues(alpha: 0.65),
                   ),
                 ),
               ),
               child: Row(
                 children: [
                   Expanded(
+                    flex: 4,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Total Pembayaran',
+                          _selectedOption != null
+                              ? 'Total Estimasi'
+                              : 'Harga Material',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: AppTypography.labelSm(
                             color: AppColors.onSurfaceVariant,
                           ),
                         ),
+                        const SizedBox(height: 2),
                         Text(
-                          _selectedOption != null
-                              ? MaterialListing.formatRupiah(previewTotal)
-                              : MaterialListing.formatRupiah(
-                                  widget.listing.price,
-                                ),
+                          MaterialListing.formatRupiah(displayedTotal),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: AppTypography.headlineSm(
@@ -342,34 +432,39 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  SizedBox(
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: canSubmit ? _handleSubmitCheckout : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryContainer,
-                        foregroundColor: Colors.white,
-                        // Override AppTheme.lightTheme's Size.fromHeight(50) (infinite width)
-                        // so this Row child never triggers unbounded-width layout failure.
-                        minimumSize: const Size(140, 48),
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        shape: const StadiumBorder(),
-                      ),
-                      child: orderVm.isCreatingOrder
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
+                  Flexible(
+                    flex: 5,
+                    child: SizedBox(
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: canSubmit ? _handleSubmitCheckout : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryContainer,
+                          foregroundColor: Colors.white,
+                          // Override AppTheme.lightTheme's Size.fromHeight(50) (infinite width)
+                          // so this Row child never triggers unbounded-width layout failure.
+                          minimumSize: const Size(140, 48),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          shape: const StadiumBorder(),
+                        ),
+                        child: orderVm.isCreatingOrder
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(
+                                'Bayar ${MaterialListing.formatRupiah(displayedTotal)}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.labelMd(
+                                  color: Colors.white,
+                                ).copyWith(fontWeight: FontWeight.w700),
                               ),
-                            )
-                          : Text(
-                              'Buat Pesanan & Bayar',
-                              style: AppTypography.labelMd(
-                                color: Colors.white,
-                              ).copyWith(fontWeight: FontWeight.w700),
-                            ),
+                      ),
                     ),
                   ),
                 ],
@@ -388,8 +483,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Ringkasan Material (Satu Lot)',
-            style: AppTypography.labelLg(color: AppColors.onSurface),
+            'Ringkasan Material',
+            style: AppTypography.labelLg(
+              color: AppColors.onSurface,
+            ).copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 12),
           Row(
@@ -398,8 +495,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: SizedBox(
-                  width: 64,
-                  height: 64,
+                  width: 56,
+                  height: 56,
                   child: (item.imageUrl != null && item.imageUrl!.isNotEmpty)
                       ? Image.network(
                           item.imageUrl!,
@@ -416,16 +513,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   children: [
                     Text(
                       item.name,
-                      style: AppTypography.labelLg(color: AppColors.onSurface),
+                      style: AppTypography.labelLg(
+                        color: AppColors.onSurface,
+                      ).copyWith(fontWeight: FontWeight.w700),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${item.categoryLabel} • ${item.weightKg.toStringAsFixed(1)} kg • Penjual: ${item.ownerName ?? 'Pengguna #${item.ownerId}'}',
+                      '${item.categoryLabel} · ${item.weightKg.toStringAsFixed(1)} kg · ${item.ownerName ?? 'Penjual #${item.ownerId}'}',
                       style: AppTypography.bodySm(
                         color: AppColors.onSurfaceVariant,
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 6),
                     Text(
@@ -463,7 +564,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               Expanded(
                 child: Text(
                   'Alamat Pengiriman',
-                  style: AppTypography.labelLg(color: AppColors.onSurface),
+                  style: AppTypography.labelLg(
+                    color: AppColors.onSurface,
+                  ).copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
               if (selectedAddress != null)
@@ -471,6 +574,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   onPressed: _openAddressSelection,
                   style: TextButton.styleFrom(
                     minimumSize: const Size(48, 44),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
                     foregroundColor: AppColors.primaryContainer,
                   ),
                   child: const Text('Ganti Alamat'),
@@ -492,7 +596,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ),
                   ),
                   SizedBox(width: 10),
-                  Text('Memuat alamat tersimpan...'),
+                  Expanded(child: Text('Memuat alamat tersimpan...')),
                 ],
               ),
             )
@@ -513,7 +617,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             ),
           ] else if (selectedAddress == null) ...[
             Text(
-              'Anda belum memiliki alamat pengiriman tersimpan. Tambahkan alamat untuk memilih layanan pengiriman.',
+              'Belum ada alamat pengiriman tersimpan. Tambahkan alamat untuk melihat opsi kurir.',
               style: AppTypography.bodySm(color: AppColors.onSurfaceVariant),
             ),
             const SizedBox(height: 12),
@@ -524,7 +628,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 onPressed: _openAddAddress,
                 icon: const Icon(Icons.add_location_alt_outlined, size: 18),
                 label: Text(
-                  'Tambah Alamat Pengiriman',
+                  'Tambah Alamat',
                   style: AppTypography.labelMd(
                     color: Colors.white,
                   ).copyWith(fontWeight: FontWeight.w700),
@@ -539,19 +643,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             ),
           ] else ...[
             Text(
-              '${selectedAddress.label} • ${selectedAddress.recipientName}',
+              '${selectedAddress.label} · ${selectedAddress.recipientName}',
               style: AppTypography.labelMd(
                 color: AppColors.onSurface,
               ).copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 2),
             Text(
-              selectedAddress.recipientPhone,
+              PhoneUtils.formatForDisplay(selectedAddress.recipientPhone),
               style: AppTypography.bodySm(color: AppColors.onSurfaceVariant),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
-              selectedAddress.destinationLabel,
+              DisplayFormatters.deduplicateLocationLabel(
+                selectedAddress.destinationLabel,
+              ),
               style: AppTypography.bodySm(
                 color: AppColors.secondary,
               ).copyWith(fontWeight: FontWeight.w600),
@@ -568,6 +674,30 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Widget _buildCourierSelectionCard(UserAddress? selectedAddress) {
+    final ranked = _estimateResult != null
+        ? _rankCourierOptions(_estimateResult!.options)
+        : const <_RankedCourierOption>[];
+
+    List<_RankedCourierOption> visibleOptions = ranked;
+    if (!_showAllCouriers && ranked.length > 3) {
+      visibleOptions = ranked.take(3).toList();
+      if (_selectedOption != null) {
+        final selectedAlreadyVisible = visibleOptions.any(
+          (item) => _isSameOption(item.option, _selectedOption!),
+        );
+        if (!selectedAlreadyVisible) {
+          final matchingRanked = ranked.where(
+            (item) => _isSameOption(item.option, _selectedOption!),
+          );
+          if (matchingRanked.isNotEmpty) {
+            visibleOptions.add(matchingRanked.first);
+          }
+        }
+      }
+    }
+
+    final hiddenCount = ranked.length - visibleOptions.length;
+
     return _card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -582,8 +712,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Pilih Layanan Pengiriman',
-                  style: AppTypography.labelLg(color: AppColors.onSurface),
+                  'Pilih Kurir',
+                  style: AppTypography.labelLg(
+                    color: AppColors.onSurface,
+                  ).copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
               if (selectedAddress != null && !_isEstimating)
@@ -591,6 +723,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   onPressed: () => _fetchShippingEstimate(selectedAddress),
                   style: TextButton.styleFrom(
                     minimumSize: const Size(48, 44),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
                     foregroundColor: AppColors.primaryContainer,
                   ),
                   child: const Text('Muat Ulang'),
@@ -617,7 +750,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ),
                   ),
                   SizedBox(width: 10),
-                  Text('Mengambil tarif kurir...'),
+                  Expanded(child: Text('Mengambil tarif kurir...')),
                 ],
               ),
             )
@@ -637,7 +770,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ),
               ],
             )
-          else if (_estimateResult == null || _estimateResult!.options.isEmpty)
+          else if (ranked.isEmpty)
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -664,23 +797,35 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ),
               ],
             )
-          else
+          else ...[
             Column(
-              children: _estimateResult!.options.map((opt) {
+              children: visibleOptions.map((rankedOpt) {
+                final opt = rankedOpt.option;
                 final isSelected =
                     _selectedOption != null &&
-                    _selectedOption!.courierCode == opt.courierCode &&
-                    _selectedOption!.service == opt.service;
+                    _isSameOption(_selectedOption!, opt);
+                final shortTitle = DisplayFormatters.formatShortCourierTitle(
+                  courierName: opt.courierName,
+                  courierCode: opt.courierCode,
+                  service: opt.service,
+                );
+                final etdText = DisplayFormatters.formatIndonesianEtd(opt.etd);
+
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: InkWell(
                     onTap: () => setState(() => _selectedOption = opt),
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
+                      ),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? AppColors.secondaryContainer.withValues(alpha: 0.4)
+                            ? AppColors.secondaryContainer.withValues(
+                                alpha: 0.45,
+                              )
                             : AppColors.surface,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
@@ -691,6 +836,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         ),
                       ),
                       child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Icon(
                             isSelected
@@ -706,19 +852,49 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  '${opt.courierName} (${opt.service})',
-                                  style: AppTypography.labelMd(
-                                    color: AppColors.onSurface,
-                                  ).copyWith(fontWeight: FontWeight.w700),
-                                ),
-                                if (opt.etd != null)
-                                  Text(
-                                    'Estimasi ${opt.etd!}',
-                                    style: AppTypography.labelSm(
-                                      color: AppColors.onSurfaceVariant,
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 4,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    Text(
+                                      shortTitle,
+                                      style: AppTypography.labelMd(
+                                        color: AppColors.onSurface,
+                                      ).copyWith(fontWeight: FontWeight.w700),
                                     ),
+                                    if (rankedOpt.badgeLabel != null)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 7,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.secondaryContainer,
+                                          borderRadius: BorderRadius.circular(
+                                            999,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          rankedOpt.badgeLabel!,
+                                          style: AppTypography.labelSm(
+                                            color:
+                                                AppColors.onSecondaryContainer,
+                                          ).copyWith(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 10,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  etdText,
+                                  style: AppTypography.labelSm(
+                                    color: AppColors.onSurfaceVariant,
                                   ),
+                                ),
                               ],
                             ),
                           ),
@@ -736,6 +912,33 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 );
               }).toList(),
             ),
+            if (ranked.length > 3) ...[
+              const SizedBox(height: 2),
+              Center(
+                child: TextButton.icon(
+                  onPressed: () {
+                    setState(() => _showAllCouriers = !_showAllCouriers);
+                  },
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(48, 44),
+                    foregroundColor: AppColors.primaryContainer,
+                  ),
+                  icon: Icon(
+                    _showAllCouriers ? Icons.expand_less : Icons.expand_more,
+                    size: 18,
+                  ),
+                  label: Text(
+                    _showAllCouriers
+                        ? 'Tampilkan Lebih Sedikit'
+                        : 'Lihat Opsi Lain ($hiddenCount)',
+                    style: AppTypography.labelMd(
+                      color: AppColors.primaryContainer,
+                    ).copyWith(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ],
+          ],
         ],
       ),
     );
@@ -748,7 +951,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         children: [
           Text(
             'Catatan Pembeli (Opsional)',
-            style: AppTypography.labelLg(color: AppColors.onSurface),
+            style: AppTypography.labelMd(
+              color: AppColors.onSurfaceVariant,
+            ).copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           TextField(
@@ -760,8 +965,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               errorText: orderVm.fieldErrors['buyer_note'],
               filled: true,
               fillColor: AppColors.surface,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(
+                  color: AppColors.outlineVariant,
+                  width: 0.8,
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(
+                  color: AppColors.outlineVariant,
+                  width: 0.8,
+                ),
               ),
             ),
           ),
@@ -777,33 +997,37 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         children: [
           Text(
             'Ringkasan Pembayaran',
-            style: AppTypography.labelLg(color: AppColors.onSurface),
+            style: AppTypography.labelLg(
+              color: AppColors.onSurface,
+            ).copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 12),
           _priceRow(
             'Harga Material',
             MaterialListing.formatRupiah(widget.listing.price),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           _priceRow(
-            'Ongkir',
+            'Ongkos Kirim',
             _selectedOption != null
                 ? MaterialListing.formatRupiah(shippingCost)
                 : 'Belum dipilih',
           ),
-          const SizedBox(height: 6),
-          _priceRow('Biaya Platform', MaterialListing.formatRupiah(0)),
           const Padding(
-            padding: EdgeInsets.symmetric(vertical: 10),
+            padding: EdgeInsets.symmetric(vertical: 12),
             child: Divider(height: 1),
           ),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Total Pembayaran',
-                style: AppTypography.labelLg(color: AppColors.onSurface),
+              Expanded(
+                child: Text(
+                  'Total Estimasi Pembayaran',
+                  style: AppTypography.labelLg(
+                    color: AppColors.onSurface,
+                  ).copyWith(fontWeight: FontWeight.w700),
+                ),
               ),
+              const SizedBox(width: 8),
               Text(
                 _selectedOption != null
                     ? MaterialListing.formatRupiah(previewTotal)
@@ -816,7 +1040,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Tarif pengiriman dan total pembayaran akhir akan diverifikasi ulang secara otoritatif oleh server saat pesanan dibuat.',
+            'Total akhir diverifikasi ulang oleh server saat pesanan dibuat.',
             style: AppTypography.labelSm(color: AppColors.onSurfaceVariant),
           ),
         ],
@@ -868,7 +1092,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         color: AppColors.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: AppColors.outlineVariant.withValues(alpha: 0.6),
+          color: AppColors.outlineVariant.withValues(alpha: 0.55),
         ),
       ),
       child: child,
@@ -877,12 +1101,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   Widget _priceRow(String label, String value) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: AppTypography.bodyMd(color: AppColors.onSurfaceVariant),
+        Expanded(
+          child: Text(
+            label,
+            style: AppTypography.bodyMd(color: AppColors.onSurfaceVariant),
+          ),
         ),
+        const SizedBox(width: 8),
         Text(
           value,
           style: AppTypography.bodyMd(

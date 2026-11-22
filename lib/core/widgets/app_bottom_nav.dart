@@ -61,9 +61,9 @@ class AppBottomNav extends StatelessWidget {
                   ),
                   _buildNavItem(
                     index: 3,
-                    icon: Icons.schedule_outlined,
-                    activeIcon: Icons.schedule,
-                    label: 'Aktivitas',
+                    icon: Icons.person_outline,
+                    activeIcon: Icons.person,
+                    label: 'Profil',
                   ),
                 ],
               ),

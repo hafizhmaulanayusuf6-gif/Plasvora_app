@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import '../../core/utils/display_formatters.dart';
 import '../../core/utils/phone_utils.dart';
 import '../../core/widgets/destination_picker_sheet.dart';
-import '../../core/widgets/plasvora_header.dart';
+import '../../core/widgets/simple_page_app_bar.dart';
 import '../../models/user_address.dart';
 import '../../repositories/shipping_repository.dart';
 import '../../viewmodels/address_viewmodel.dart';
@@ -241,9 +242,8 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: PlasvoraHeader(
-        customTitle: _isEditMode ? 'Edit Alamat' : 'Tambah Alamat',
-        showBack: true,
+      appBar: SimplePageAppBar(
+        title: _isEditMode ? 'Edit Alamat' : 'Tambah Alamat',
         onBack: () => Navigator.of(context).pop(),
       ),
       body: SafeArea(
@@ -370,8 +370,11 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                _destinationLabel ??
-                                    'Pilih kelurahan, kecamatan, atau kota',
+                                _destinationLabel != null
+                                    ? DisplayFormatters.deduplicateLocationLabel(
+                                        _destinationLabel!,
+                                      )
+                                    : 'Pilih kelurahan, kecamatan, atau kota',
                                 style: _destinationLabel != null
                                     ? AppTypography.bodyMd(
                                         color: AppColors.onSurface,

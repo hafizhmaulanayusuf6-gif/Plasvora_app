@@ -8,13 +8,16 @@ import '../../core/theme/app_typography.dart';
 import '../../core/widgets/plasvora_header.dart';
 import '../../repositories/shipping_repository.dart';
 import '../../viewmodels/analysis_viewmodel.dart';
+import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/marketplace_viewmodel.dart';
 import '../../viewmodels/navigation_viewmodel.dart';
+import '../auth/login_screen.dart';
 import 'analysis_result_screen.dart';
 
 class AnalysisScreen extends StatefulWidget {
   final AnalysisViewModel viewModel;
   final NavigationViewModel navigationViewModel;
+  final AuthViewModel? authViewModel;
   final MarketplaceViewModel? marketplaceViewModel;
   final ShippingRepository? shippingRepository;
 
@@ -22,6 +25,7 @@ class AnalysisScreen extends StatefulWidget {
     super.key,
     required this.viewModel,
     required this.navigationViewModel,
+    this.authViewModel,
     this.marketplaceViewModel,
     this.shippingRepository,
   });
@@ -50,10 +54,23 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     super.dispose();
   }
 
+  void _handleAvatarTap() {
+    final authVm = widget.authViewModel;
+    if (authVm == null || authVm.isAuthenticated) {
+      widget.navigationViewModel.goToProfile();
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => LoginScreen(authViewModel: authVm),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const PlasvoraHeader(),
+      appBar: PlasvoraHeader(onAvatarTap: _handleAvatarTap),
       body: ListenableBuilder(
         listenable: widget.viewModel,
         builder: (context, _) {

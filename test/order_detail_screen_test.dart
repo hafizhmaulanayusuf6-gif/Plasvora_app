@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:plasvora/core/theme/app_theme.dart';
 import 'package:plasvora/core/utils/payment_launcher.dart';
+import 'package:plasvora/core/widgets/plasvora_header.dart';
+import 'package:plasvora/core/widgets/simple_page_app_bar.dart';
 import 'package:plasvora/models/order_item.dart';
 import 'package:plasvora/models/user_profile.dart';
 import 'package:plasvora/repositories/auth_repository.dart';
@@ -196,10 +200,12 @@ OrderItem _makeOrder({
   String? redirectUrl =
       'https://app.sandbox.midtrans.com/snap/v4/redirection/tok-1',
   String? trackingNumber,
+  int platformFee = 0,
+  List<OrderStatusHistoryItem> histories = const [],
 }) {
   return OrderItem(
     id: 50,
-    orderNumber: 'PLV-DET-50',
+    orderNumber: 'PLV-20261122-ORDER-DET-50-LONG',
     role: role,
     buyerId: 2,
     buyerName: 'Budi Pembeli',
@@ -213,31 +219,32 @@ OrderItem _makeOrder({
       name: 'Lot PET Bening 10kg',
       category: 'PET',
       weightKg: 10.0,
-      originLabel: 'BRAGA, BANDUNG',
+      originLabel: 'BRAGA, BANDUNG, BANDUNG, JAWA BARAT',
     ),
     shippingAddress: includeFullPii
         ? const OrderAddressSnapshot(
             recipientName: 'Budi Pembeli',
             recipientPhone: '6281234567890',
             destinationId: 6157,
-            destinationLabel: 'BABAKANKARET, CIANJUR',
+            destinationLabel: 'BABAKANKARET, CIANJUR, CIANJUR',
             addressDetail: 'Jl. Cianjur No. 12',
             postalCode: '43211',
           )
         : const OrderAddressSnapshot(
             destinationId: 6157,
-            destinationLabel: 'BABAKANKARET, CIANJUR',
+            destinationLabel: 'BABAKANKARET, CIANJUR, CIANJUR',
           ),
     itemPrice: 50000,
     shippingCost: 18000,
-    platformFee: 0,
-    totalAmount: 68000,
+    platformFee: platformFee,
+    totalAmount: 68000 + platformFee,
     courierCode: 'jne',
     courierName: 'JNE',
     courierService: 'REG',
     estimatedEtd: '2-3 day',
     trackingNumber: trackingNumber,
     midtransRedirectUrl: redirectUrl,
+    statusHistories: histories,
     paidAt: paymentStatus == OrderItem.paymentPaid
         ? DateTime(2026, 11, 22, 15)
         : null,
@@ -256,17 +263,42 @@ void main() {
     GoogleFonts.config.allowRuntimeFetching = previousAllowRuntimeFetching;
   });
 
-  group('OrderDetailScreen Payment Launch, Resume Sync & Role Guards', () {
-    testWidgets('launches trusted Midtrans URL and syncs payment status on app resume from server', (tester) async {
+  group('OrderDetailScreen Hierarchy, Payment Launch, Resume Sync & Role Guards', () {
+    testWidgets('uses SimplePageAppBar, copies full order number, hides zero platformFee, collapses history by default, and syncs payment on resume', (tester) async {
+      String? copiedClipboardText;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copiedClipboardText = (call.arguments as Map)['text'] as String?;
+        }
+        return null;
+      });
+      addTearDown(() {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(SystemChannels.platform, null);
+      });
+
       final pendingOrder = _makeOrder(
         status: OrderItem.statusPendingPayment,
         paymentStatus: OrderItem.paymentUnpaid,
         role: 'buyer',
+        platformFee: 0,
+        histories: [
+          OrderStatusHistoryItem(
+            id: 1,
+            toStatus: OrderItem.statusPendingPayment,
+            actorType: 'buyer',
+            source: 'checkout',
+            reason: 'Pesanan dibuat oleh pembeli',
+            createdAt: DateTime(2026, 11, 22, 14),
+          ),
+        ],
       );
       final paidOrder = _makeOrder(
         status: OrderItem.statusPaid,
         paymentStatus: OrderItem.paymentPaid,
         role: 'buyer',
+        platformFee: 2500,
       );
 
       final repo = _DetailOrderRepo(pendingOrder)
@@ -282,6 +314,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          theme: AppTheme.lightTheme,
           home: OrderDetailScreen(
             orderId: 50,
             initialOrder: pendingOrder,
@@ -293,10 +326,50 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Scroll ke tombol Lanjutkan Pembayaran lalu tap
-      final payBtn = find.text('Lanjutkan Pembayaran');
-      await tester.scrollUntilVisible(payBtn, 200);
+      // SimplePageAppBar digunakan, tanpa PlasvoraHeader
+      expect(find.byType(SimplePageAppBar), findsOneWidget);
+      expect(find.byType(PlasvoraHeader), findsNothing);
+      expect(find.text('Ringkasan Material'), findsOneWidget);
+
+      // Copy full order number
+      await tester.tap(find.byTooltip('Salin nomor pesanan'));
+      await tester.pumpAndSettle();
+      expect(copiedClipboardText, 'PLV-20261122-ORDER-DET-50-LONG');
+
+      // Biaya Platform disembunyikan saat platformFee == 0
+      expect(find.text('Biaya Platform'), findsNothing);
+
+      // Riwayat Status Pesanan terlipat (collapsed) secara default
+      final orderDetailScrollable = find
+          .descendant(
+            of: find.byType(ListView),
+            matching: find.byType(Scrollable),
+          )
+          .first;
+      final historyHeader = find.text('Riwayat Status Pesanan');
+      await tester.scrollUntilVisible(
+        historyHeader,
+        250,
+        scrollable: orderDetailScrollable,
+      );
+      await tester.ensureVisible(historyHeader);
+      await tester.pumpAndSettle();
+      expect(find.text('Pesanan dibuat oleh pembeli'), findsNothing);
+
+      // Expand Riwayat Status Pesanan
+      await tester.tap(historyHeader);
+      await tester.pumpAndSettle();
+      expect(find.text('Pesanan dibuat oleh pembeli'), findsOneWidget);
+
+      // Gulir kembali ke tombol Bayar Sekarang (Next Step di bagian atas) lalu tap
+      final payBtn = find.text('Bayar Sekarang');
+      await tester.scrollUntilVisible(
+        payBtn,
+        -250,
+        scrollable: orderDetailScrollable,
+      );
       await tester.ensureVisible(payBtn);
+      await tester.pumpAndSettle();
       await tester.tap(payBtn);
       await tester.pumpAndSettle();
 
@@ -304,7 +377,6 @@ void main() {
         'https://app.sandbox.midtrans.com/snap/v4/redirection/tok-1',
       ]);
       expect(vm.pendingPaymentOrderId, 50);
-      // Belum otomatis paid hanya karena browser dibuka
       expect(vm.currentOrder?.status, OrderItem.statusPendingPayment);
 
       // Simulasikan app kembali ke foreground -> panggil refresh-payment server
@@ -313,7 +385,15 @@ void main() {
 
       expect(repo.refreshCalls, 1);
       expect(vm.currentOrder?.status, OrderItem.statusPaid);
-      expect(find.text('Menunggu Penjual Mengirim Pesanan'), findsOneWidget);
+      expect(find.text('Menunggu Penjual Mengirim'), findsOneWidget);
+
+      // Saat platformFee > 0, baris Biaya Platform tampil
+      await tester.scrollUntilVisible(
+        find.text('Biaya Platform'),
+        250,
+        scrollable: orderDetailScrollable,
+      );
+      expect(find.text('Biaya Platform'), findsOneWidget);
     });
 
     testWidgets('rejects arbitrary untrusted payment URL safely', (tester) async {
@@ -335,6 +415,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          theme: AppTheme.lightTheme,
           home: OrderDetailScreen(
             orderId: 50,
             initialOrder: badOrder,
@@ -346,9 +427,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final payBtn = find.text('Lanjutkan Pembayaran');
-      await tester.scrollUntilVisible(payBtn, 200);
+      final payBtn = find.text('Bayar Sekarang');
       await tester.ensureVisible(payBtn);
+      await tester.pumpAndSettle();
       await tester.tap(payBtn);
       await tester.pumpAndSettle();
 
@@ -360,7 +441,7 @@ void main() {
       );
     });
 
-    testWidgets('enforces seller privacy before payment and validates tracking form after payment', (tester) async {
+    testWidgets('enforces seller privacy before payment and validates tracking form with selected courier after payment', (tester) async {
       // 1. Seller unpaid: PII hidden, no ship form
       final sellerUnpaid = _makeOrder(
         status: OrderItem.statusPendingPayment,
@@ -380,6 +461,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          theme: AppTheme.lightTheme,
           home: OrderDetailScreen(
             orderId: 50,
             initialOrder: sellerUnpaid,
@@ -390,12 +472,23 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      final orderDetailScrollable = find
+          .descendant(
+            of: find.byType(ListView),
+            matching: find.byType(Scrollable),
+          )
+          .first;
+      await tester.scrollUntilVisible(
+        find.text('BABAKANKARET, CIANJUR'),
+        250,
+        scrollable: orderDetailScrollable,
+      );
       expect(find.text('BABAKANKARET, CIANJUR'), findsOneWidget);
-      expect(find.text('6281234567890'), findsNothing);
+      expect(find.text('+6281234567890'), findsNothing);
       expect(find.text('Jl. Cianjur No. 12'), findsNothing);
       expect(find.text('Input Resi & Kirim Pesanan'), findsNothing);
 
-      // 2. Seller paid: full shipping address shown, tracking form validates & requires confirmation dialog
+      // 2. Seller paid: full shipping address shown, tracking form near top with selected courier
       final sellerPaid = _makeOrder(
         status: OrderItem.statusPaid,
         paymentStatus: OrderItem.paymentPaid,
@@ -407,26 +500,19 @@ void main() {
       await vm.loadOrderDetail(50);
       await tester.pumpAndSettle();
 
-      expect(find.text('6281234567890'), findsOneWidget);
-      expect(find.text('Jl. Cianjur No. 12'), findsOneWidget);
-
-      final orderDetailScrollable = find
-          .descendant(
-            of: find.byType(ListView),
-            matching: find.byType(Scrollable),
-          )
-          .first;
+      // Pastikan form resi dan informasi kurir tampil di bagian atas
       final shipBtn = find.ancestor(
         of: find.text('Input Resi & Kirim Pesanan'),
         matching: find.byWidgetPredicate((widget) => widget is ElevatedButton),
       );
       await tester.scrollUntilVisible(
         shipBtn,
-        250,
+        -250,
         scrollable: orderDetailScrollable,
       );
       await tester.ensureVisible(shipBtn);
       await tester.pumpAndSettle();
+      expect(find.text('Kurir dipilih: JNE - REG'), findsOneWidget);
 
       // Validasi kosong gagal
       await tester.tap(shipBtn);
@@ -453,6 +539,16 @@ void main() {
       expect(repo.shipCalls, 1);
       expect(repo.lastTracking, 'JNE88776655');
       expect(vm.currentOrder?.status, OrderItem.statusShipped);
+
+      // Alamat lengkap & telepon terformat +62 tampil untuk penjual setelah paid
+      await tester.scrollUntilVisible(
+        find.text('+6281234567890'),
+        250,
+        scrollable: orderDetailScrollable,
+      );
+      expect(find.text('+6281234567890'), findsOneWidget);
+      expect(find.text('Jl. Cianjur No. 12'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('buyer delivery confirmation requires dialog confirmation', (tester) async {
@@ -473,6 +569,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          theme: AppTheme.lightTheme,
           home: OrderDetailScreen(
             orderId: 50,
             initialOrder: buyerShipped,
@@ -484,8 +581,8 @@ void main() {
       await tester.pumpAndSettle();
 
       final confirmBtn = find.text('Konfirmasi Pesanan Diterima');
-      await tester.scrollUntilVisible(confirmBtn, 250);
       await tester.ensureVisible(confirmBtn);
+      await tester.pumpAndSettle();
       await tester.tap(confirmBtn);
       await tester.pumpAndSettle();
 
@@ -497,6 +594,7 @@ void main() {
 
       expect(repo.confirmCalls, 1);
       expect(vm.currentOrder?.status, OrderItem.statusCompleted);
+      expect(tester.takeException(), isNull);
     });
   });
 }

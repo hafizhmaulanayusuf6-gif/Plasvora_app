@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:plasvora/core/theme/app_theme.dart';
 import 'package:plasvora/core/widgets/plasvora_header.dart';
-import 'package:plasvora/models/material_listing.dart';
+import 'package:plasvora/core/widgets/simple_page_app_bar.dart';
 import 'package:plasvora/models/order_item.dart';
 import 'package:plasvora/models/user_profile.dart';
 import 'package:plasvora/repositories/auth_repository.dart';
-import 'package:plasvora/repositories/material_repository.dart';
 import 'package:plasvora/repositories/order_repository.dart';
 import 'package:plasvora/viewmodels/auth_viewmodel.dart';
-import 'package:plasvora/viewmodels/home_viewmodel.dart';
-import 'package:plasvora/viewmodels/navigation_viewmodel.dart';
 import 'package:plasvora/viewmodels/order_viewmodel.dart';
-import 'package:plasvora/views/home/home_screen.dart';
 import 'package:plasvora/views/orders/order_list_screen.dart';
+import 'package:plasvora/views/profile/profile_screen.dart';
 
 class _StubOrderRepo implements OrderRepository {
   List<OrderItem> buyerItems = [];
@@ -116,21 +114,6 @@ class _StubAuthRepo implements AuthRepository {
       user;
 }
 
-class _StubMaterialRepo extends MockMaterialRepository {
-  _StubMaterialRepo() : super(simulateDelay: false);
-
-  @override
-  Future<List<MaterialListing>> getMaterials({
-    String? category,
-    String? query,
-    String? condition,
-    double? minWeight,
-    double? maxWeight,
-    String? location,
-  }) async =>
-      const [];
-}
-
 OrderItem _order({
   required int id,
   required String role,
@@ -168,6 +151,7 @@ OrderItem _order({
     courierCode: 'jne',
     courierName: 'JNE',
     courierService: 'REG',
+    createdAt: DateTime(2026, 11, 22, 10, 30),
   );
 }
 
@@ -184,7 +168,7 @@ void main() {
   });
 
   group('OrderListScreen & Profile Navigation Tests', () {
-    testWidgets('shows buyer and seller tabs, empty state, error retry, and hides buyer PII on cards', (tester) async {
+    testWidgets('uses SimplePageAppBar, shows 5 status filters, buyer/seller tabs, retry, empty state, and hides buyer PII', (tester) async {
       final repo = _StubOrderRepo()
         ..failNext = true
         ..buyerItems = [
@@ -208,10 +192,22 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          theme: AppTheme.lightTheme,
           home: OrderListScreen(orderViewModel: vm),
         ),
       );
       await tester.pumpAndSettle();
+
+      // AppBar internal sederhana (tanpa PlasvoraHeader)
+      expect(find.byType(SimplePageAppBar), findsOneWidget);
+      expect(find.byType(PlasvoraHeader), findsNothing);
+
+      // 5 filter status utama tampil jelas
+      expect(find.text('Semua'), findsOneWidget);
+      expect(find.text('Belum Bayar'), findsOneWidget);
+      expect(find.text('Diproses'), findsOneWidget);
+      expect(find.text('Dikirim'), findsOneWidget);
+      expect(find.text('Selesai'), findsOneWidget);
 
       // Error state + retry
       expect(find.text('Coba Lagi'), findsOneWidget);
@@ -220,7 +216,7 @@ void main() {
 
       // Buyer tab data visible, no PII address/phone leaked on list card
       expect(find.text('Lot PET Pembelian'), findsOneWidget);
-      expect(find.text('Lanjutkan Pembayaran'), findsOneWidget);
+      expect(find.text('Bayar'), findsOneWidget);
       expect(find.textContaining('628999888777'), findsNothing);
       expect(find.textContaining('Jl. Rahasia Banget'), findsNothing);
 
@@ -228,17 +224,19 @@ void main() {
       await tester.tap(find.text('Penjualan'));
       await tester.pumpAndSettle();
       expect(find.text('Lot HDPE Penjualan'), findsOneWidget);
-      expect(find.text('Pesanan Siap Dikirim'), findsOneWidget);
+      expect(find.text('Input Resi'), findsOneWidget);
       expect(find.textContaining('628999888777'), findsNothing);
 
       // Filter by status with no matches -> empty state
       await tester.ensureVisible(find.text('Selesai'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Selesai'));
       await tester.pumpAndSettle();
       expect(find.text('Belum Ada Pesanan Masuk'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
 
-    testWidgets('Profile Account modal navigates to OrderListScreen lifecycle-safely', (tester) async {
+    testWidgets('ProfileScreen navigates to OrderListScreen lifecycle-safely', (tester) async {
       final orderRepo = _StubOrderRepo();
       final orderVm = OrderViewModel(orderRepository: orderRepo);
       final authVm = AuthViewModel(
@@ -251,9 +249,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: HomeScreen(
-            viewModel: HomeViewModel(materialRepository: _StubMaterialRepo()),
-            navigationViewModel: NavigationViewModel(),
+          theme: AppTheme.lightTheme,
+          home: ProfileScreen(
             authViewModel: authVm,
             orderViewModel: orderVm,
           ),
@@ -261,19 +258,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Buka modal Profil Akun melalui tombol avatar aktual di PlasvoraHeader
-      final avatarButton = find.descendant(
-        of: find.byType(PlasvoraHeader),
-        matching: find.byWidgetPredicate(
-          (widget) => widget is GestureDetector && widget.child is ClipRRect,
-        ),
-      );
-      expect(avatarButton, findsOneWidget);
-      await tester.tap(avatarButton);
-      await tester.pumpAndSettle();
-
       expect(find.text('Pesanan Saya'), findsOneWidget);
       await tester.ensureVisible(find.text('Pesanan Saya'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Pesanan Saya'));
       await tester.pumpAndSettle();
 

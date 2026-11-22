@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
-import '../../core/widgets/plasvora_header.dart';
+import '../../core/widgets/simple_page_app_bar.dart';
 import '../../models/activity_item.dart';
 import '../../models/plastic_analysis.dart';
 import '../../repositories/shipping_repository.dart';
@@ -38,26 +38,32 @@ class ActivityScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     if (viewModel == null) {
       return Scaffold(
-        appBar: const PlasvoraHeader(customTitle: 'Jejak Aktivitas'),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildInfoBanner(),
-              const SizedBox(height: 20),
-              Text(
-                'Riwayat Transaksi & Serah Terima',
-                style: AppTypography.headlineSm(color: AppColors.onSurface),
-              ),
-              const SizedBox(height: 24),
-              Center(
-                child: Text(
-                  'Modul aktivitas belum terhubung.',
-                  style: AppTypography.bodySm(color: AppColors.onSurfaceVariant),
+        backgroundColor: AppColors.surface,
+        appBar: const SimplePageAppBar(title: 'Aktivitas'),
+        body: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildInfoBanner(),
+                const SizedBox(height: 20),
+                Text(
+                  'Riwayat Transaksi & Serah Terima',
+                  style: AppTypography.headlineSm(color: AppColors.onSurface),
                 ),
-              ),
-            ],
+                const SizedBox(height: 24),
+                Center(
+                  child: Text(
+                    'Modul aktivitas belum terhubung.',
+                    style: AppTypography.bodySm(
+                      color: AppColors.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -67,29 +73,33 @@ class ActivityScreen extends StatelessWidget {
       listenable: viewModel!,
       builder: (context, _) {
         return Scaffold(
-          appBar: const PlasvoraHeader(customTitle: 'Jejak Aktivitas'),
-          body: RefreshIndicator(
-            onRefresh: () => viewModel!.refreshAll(),
-            color: AppColors.primary,
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildInfoBanner(),
-                  if (orderViewModel != null) ...[
-                    const SizedBox(height: 12),
-                    _buildOrdersShortcut(context),
+          backgroundColor: AppColors.surface,
+          appBar: const SimplePageAppBar(title: 'Aktivitas'),
+          body: SafeArea(
+            top: false,
+            child: RefreshIndicator(
+              onRefresh: () => viewModel!.refreshAll(),
+              color: AppColors.primary,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildInfoBanner(),
+                    if (orderViewModel != null) ...[
+                      const SizedBox(height: 12),
+                      _buildOrdersShortcut(context),
+                    ],
+                    const SizedBox(height: 16),
+                    _buildTabSwitcher(context),
+                    const SizedBox(height: 16),
+                    if (viewModel!.selectedTabIndex == 0)
+                      _buildActivitiesContent(context)
+                    else
+                      _buildAnalysisHistoryContent(context),
                   ],
-                  const SizedBox(height: 16),
-                  _buildTabSwitcher(context),
-                  const SizedBox(height: 16),
-                  if (viewModel!.selectedTabIndex == 0)
-                    _buildActivitiesContent(context)
-                  else
-                    _buildAnalysisHistoryContent(context),
-                ],
+                ),
               ),
             ),
           ),

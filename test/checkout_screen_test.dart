@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:plasvora/core/network/api_client.dart';
 import 'package:plasvora/core/theme/app_theme.dart';
+import 'package:plasvora/core/widgets/plasvora_header.dart';
+import 'package:plasvora/core/widgets/simple_page_app_bar.dart';
 import 'package:plasvora/models/material_listing.dart';
 import 'package:plasvora/models/order_item.dart';
 import 'package:plasvora/models/shipping_destination.dart';
@@ -89,6 +91,7 @@ class _StubAddressRepo implements AddressRepository {
     }
     return items;
   }
+
   @override
   Future<UserAddress> createAddress({
     String? label,
@@ -102,6 +105,7 @@ class _StubAddressRepo implements AddressRepository {
     bool? isDefault,
   }) async =>
       items.first;
+
   @override
   Future<UserAddress> updateAddress({
     required int id,
@@ -116,6 +120,7 @@ class _StubAddressRepo implements AddressRepository {
     bool? isDefault,
   }) async =>
       items.first;
+
   @override
   Future<void> deleteAddress(int id) async {}
 }
@@ -123,6 +128,8 @@ class _StubAddressRepo implements AddressRepository {
 class _StubShippingRepo implements ShippingRepository {
   int estimateCalls = 0;
   bool returnEmptyOptions = false;
+  List<ShippingCostOption>? customOptions;
+
   @override
   Future<List<ShippingDestination>> searchDestinations({
     required String query,
@@ -155,28 +162,31 @@ class _StubShippingRepo implements ShippingRepository {
       ),
       options: returnEmptyOptions
           ? const []
-          : [
-              ShippingCostOption(
-                courierCode: 'jne',
-                courierName: 'JNE',
-                service: 'REG',
-                cost: cost,
-                etd: '2-3 day',
-              ),
-              ShippingCostOption(
-                courierCode: 'jnt',
-                courierName: 'J&T Express',
-                service: 'EZ',
-                cost: cost - 2000,
-                etd: '2-3 day',
-              ),
-            ],
+          : (customOptions ??
+                [
+                  ShippingCostOption(
+                    courierCode: 'jne',
+                    courierName: 'Jalur Nugraha Ekakurir (JNE)',
+                    service: 'REG',
+                    cost: cost,
+                    etd: '2-3 day',
+                  ),
+                  ShippingCostOption(
+                    courierCode: 'jnt',
+                    courierName: 'J&T Express',
+                    service: 'EZ',
+                    cost: cost - 2000,
+                    etd: '2-3 day',
+                  ),
+                ]),
     );
   }
 }
 
 class _RecordingOrderRepo implements OrderRepository {
   final List<String> submittedIdempotencyKeys = [];
+  String? lastCourierCode;
+  String? lastCourierService;
   int createCount = 0;
   bool failOnceWithTimeout = false;
   Completer<OrderItem>? holdCreate;
@@ -225,6 +235,8 @@ class _RecordingOrderRepo implements OrderRepository {
     required String idempotencyKey,
   }) async {
     createCount++;
+    lastCourierCode = courierCode;
+    lastCourierService = courierService;
     submittedIdempotencyKeys.add(idempotencyKey);
 
     if (holdCreate != null) {
@@ -368,6 +380,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          theme: AppTheme.lightTheme,
           home: MaterialDetailScreen(
             key: const ValueKey('owner-case'),
             materialId: 10,
@@ -390,6 +403,7 @@ void main() {
       await guestAuth.checkAuthSession();
       await tester.pumpWidget(
         MaterialApp(
+          theme: AppTheme.lightTheme,
           home: MaterialDetailScreen(
             key: const ValueKey('guest-case'),
             materialId: 10,
@@ -420,6 +434,7 @@ void main() {
       await buyerAuth.checkAuthSession();
       await tester.pumpWidget(
         MaterialApp(
+          theme: AppTheme.lightTheme,
           home: MaterialDetailScreen(
             key: const ValueKey('free-case'),
             materialId: 10,
@@ -440,6 +455,7 @@ void main() {
       materialRepo.currentListing = paidListing;
       await tester.pumpWidget(
         MaterialApp(
+          theme: AppTheme.lightTheme,
           home: MaterialDetailScreen(
             key: const ValueKey('paid-case'),
             materialId: 10,
@@ -458,8 +474,8 @@ void main() {
     });
   });
 
-  group('CheckoutScreen Flow, Address Change & Idempotency Tests', () {
-    testWidgets('shows Tambah Alamat Pengiriman CTA when buyer has no saved address', (tester) async {
+  group('CheckoutScreen Flow, Courier UX, Address Change & Idempotency Tests', () {
+    testWidgets('uses SimplePageAppBar, shows Tambah Alamat when empty, and omits hardcoded Biaya Platform', (tester) async {
       final addressVm = AddressViewModel(addressRepository: _StubAddressRepo([]));
       final orderVm = OrderViewModel(orderRepository: _RecordingOrderRepo());
 
@@ -476,9 +492,13 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Tambah Alamat Pengiriman'), findsOneWidget);
+      expect(find.byType(SimplePageAppBar), findsOneWidget);
+      expect(find.byType(PlasvoraHeader), findsNothing);
+      expect(find.text('Tambah Alamat'), findsOneWidget);
+      expect(find.text('Biaya Platform'), findsNothing);
+
       final submitButton = tester.widget<ElevatedButton>(
-        find.widgetWithText(ElevatedButton, 'Buat Pesanan & Bayar'),
+        find.widgetWithText(ElevatedButton, 'Bayar Rp 50.000'),
       );
       expect(submitButton.onPressed, isNull);
     });
@@ -490,7 +510,7 @@ void main() {
         recipientName: 'Budi',
         recipientPhone: '6281234567890',
         destinationId: 6157,
-        destinationLabel: 'CIANJUR',
+        destinationLabel: 'BOJONGHERANG, CIANJUR, CIANJUR, JAWA BARAT',
         addressDetail: 'Jl. Cianjur 1',
         isDefault: true,
       );
@@ -525,6 +545,13 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      // Dedup lokasi berurutan & format nomor +62
+      expect(
+        find.text('BOJONGHERANG, CIANJUR, JAWA BARAT'),
+        findsOneWidget,
+      );
+      expect(find.text('+6281234567890'), findsOneWidget);
+
       final checkoutScrollable = find
           .descendant(
             of: find.byType(ListView),
@@ -532,8 +559,8 @@ void main() {
           )
           .first;
 
-      // Pilih JNE REG (Rp 18.000) -> Total = Rp 68.000
-      final jneOption = find.text('JNE (REG)');
+      // Pilih JNE REG (Rp 18.000) -> Total = Rp 68.000 & ETD berbahasa Indonesia
+      final jneOption = find.text('JNE REG');
       await tester.scrollUntilVisible(
         jneOption,
         200,
@@ -541,11 +568,13 @@ void main() {
       );
       await tester.ensureVisible(jneOption);
       await tester.pumpAndSettle();
+      expect(find.text('Estimasi 2-3 hari'), findsWidgets);
+
       await tester.tap(jneOption);
       await tester.pumpAndSettle();
-      expect(find.text('Rp 68.000'), findsWidgets);
+      expect(find.text('Bayar Rp 68.000'), findsOneWidget);
 
-      // Ganti alamat ke addr2 -> pilihan kurir lama harus dibersihkan & ongkir baru dihitung
+      // Ganti alamat ke addr2 -> pilihan kurir lama dibersihkan & ongkir baru dihitung
       addressVm.selectAddress(2);
       await tester.pumpAndSettle();
       expect(shippingRepo.estimateCalls, 2);
@@ -560,7 +589,7 @@ void main() {
       expect(
         tester
             .widget<ElevatedButton>(
-              find.widgetWithText(ElevatedButton, 'Buat Pesanan & Bayar'),
+              find.widgetWithText(ElevatedButton, 'Bayar Rp 50.000'),
             )
             .onPressed,
         isNull,
@@ -571,10 +600,10 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(jneOption);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Buat Pesanan & Bayar'));
+      await tester.tap(find.text('Bayar Rp 75.000'));
       await tester.pumpAndSettle();
 
-      // Recovery button muncul untuk reconciliationOrderId
+      // Recovery button muncul untuk reconciliationOrderId & payload asli tidak berubah
       final recoveryButton = find.text('Buka Pesanan Tersimpan');
       await tester.scrollUntilVisible(
         recoveryButton,
@@ -585,12 +614,14 @@ void main() {
       await tester.pumpAndSettle();
       expect(recoveryButton, findsOneWidget);
       expect(orderRepo.submittedIdempotencyKeys.length, 1);
+      expect(orderRepo.lastCourierCode, 'jne');
+      expect(orderRepo.lastCourierService, 'REG');
 
-      // Retry submit dengan holdCreate aktif -> pastikan double tap diblokir & idempotency_key sama persis
+      // Retry submit dengan holdCreate aktif -> pastikan double tap diblokir & idempotency_key sama
       final holdCompleter = Completer<OrderItem>();
       orderRepo.holdCreate = holdCompleter;
 
-      await tester.tap(find.text('Buat Pesanan & Bayar'));
+      await tester.tap(find.text('Bayar Rp 75.000'));
       await tester.pump();
 
       expect(orderVm.isCreatingOrder, isTrue);
@@ -616,7 +647,100 @@ void main() {
       expect(find.text('Detail Pesanan'), findsOneWidget);
     });
 
-    testWidgets('renders full checkout body under AppTheme.lightTheme on phone viewport including address error and empty courier states', (tester) async {
+    testWidgets('shows top 3 couriers initially, expands Lihat Opsi Lain, and keeps selected 4th option visible on collapse', (tester) async {
+      const addr = UserAddress(
+        id: 1,
+        label: 'Rumah',
+        recipientName: 'Budi',
+        recipientPhone: '6281234567890',
+        destinationId: 6157,
+        destinationLabel: 'CIANJUR',
+        addressDetail: 'Jl. Cianjur 1',
+        isDefault: true,
+      );
+
+      final shippingRepo = _StubShippingRepo()
+        ..customOptions = const [
+          ShippingCostOption(
+            courierCode: 'pos',
+            courierName: 'POS Indonesia',
+            service: 'Pos Reguler',
+            cost: 12000,
+            etd: '4 day',
+          ),
+          ShippingCostOption(
+            courierCode: 'jne',
+            courierName: 'JNE',
+            service: 'YES',
+            cost: 30000,
+            etd: '1 day',
+          ),
+          ShippingCostOption(
+            courierCode: 'jnt',
+            courierName: 'J&T Express',
+            service: 'EZ',
+            cost: 16000,
+            etd: '3 day',
+          ),
+          ShippingCostOption(
+            courierCode: 'tiki',
+            courierName: 'TIKI',
+            service: 'ONS',
+            cost: 35000,
+            etd: '2 day',
+          ),
+        ];
+
+      final addressVm = AddressViewModel(
+        addressRepository: _StubAddressRepo([addr]),
+      );
+      final orderVm = OrderViewModel(orderRepository: _RecordingOrderRepo());
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: CheckoutScreen(
+            listing: _sampleListing(),
+            addressViewModel: addressVm,
+            shippingRepository: shippingRepo,
+            orderViewModel: orderVm,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Top 3 tampil: Pos Reguler (Termurah), JNE YES (Estimasi Lebih Cepat), J&T Express (EZ)
+      expect(find.text('Pos Indonesia (Pos Reguler)'), findsOneWidget);
+      expect(find.text('Termurah'), findsOneWidget);
+      expect(find.text('JNE YES'), findsOneWidget);
+      expect(find.text('Estimasi Lebih Cepat'), findsOneWidget);
+      expect(find.text('TIKI ONS'), findsNothing);
+      expect(find.text('Lihat Opsi Lain (1)'), findsOneWidget);
+
+      // Expand opsi lain -> TIKI ONS muncul
+      await tester.ensureVisible(find.text('Lihat Opsi Lain (1)'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Lihat Opsi Lain (1)'));
+      await tester.pumpAndSettle();
+      expect(find.text('TIKI ONS'), findsOneWidget);
+
+      // Pilih TIKI ONS lalu collapse -> opsi terpilih tetap terlihat
+      await tester.ensureVisible(find.text('TIKI ONS'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('TIKI ONS'));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text('Tampilkan Lebih Sedikit'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Tampilkan Lebih Sedikit'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('TIKI ONS'), findsOneWidget);
+      expect(find.text('Bayar Rp 85.000'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('renders full checkout body under AppTheme.lightTheme on 360dp phone with 1.3x text scale including error and empty courier states', (tester) async {
       tester.view.physicalSize = const Size(360, 800);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -641,6 +765,12 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.lightTheme,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: const TextScaler.linear(1.3),
+            ),
+            child: child!,
+          ),
           home: CheckoutScreen(
             listing: _sampleListing(),
             addressViewModel: addressVm,
@@ -651,19 +781,21 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Tidak ada error layout AppTheme (infinite width) dan konten langsung tampil
+      // Tidak ada error layout AppTheme atau overflow teks besar
       expect(tester.takeException(), isNull);
-      expect(find.text('Ringkasan Material (Satu Lot)'), findsOneWidget);
+      expect(find.text('Ringkasan Material'), findsOneWidget);
       expect(find.text('PET Bening 10kg'), findsOneWidget);
       expect(find.text('Gagal mengambil alamat dari server.'), findsOneWidget);
-      expect(find.text('Buat Pesanan & Bayar'), findsOneWidget);
+      expect(find.text('Bayar Rp 50.000'), findsOneWidget);
 
       // Coba Lagi -> alamat termuat -> opsi kurir kosong menampilkan pesan & aksi pemulihan
+      await tester.ensureVisible(find.text('Coba Lagi'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Coba Lagi'));
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      expect(find.text('Rumah • Budi'), findsOneWidget);
+      expect(find.text('Rumah · Budi'), findsOneWidget);
       expect(
         find.text('Layanan pengiriman belum tersedia untuk rute ini.'),
         findsOneWidget,

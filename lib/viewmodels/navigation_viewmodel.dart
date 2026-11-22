@@ -15,5 +15,6 @@ class NavigationViewModel extends ChangeNotifier {
   void goToHome() => setIndex(0);
   void goToAnalysis() => setIndex(1);
   void goToMarketplace() => setIndex(2);
+  void goToProfile() => setIndex(3);
   void goToActivity() => setIndex(3);
 }

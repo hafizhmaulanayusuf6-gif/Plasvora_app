@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import '../../core/utils/display_formatters.dart';
 import '../../core/utils/phone_utils.dart';
-import '../../core/widgets/plasvora_header.dart';
+import '../../core/widgets/simple_page_app_bar.dart';
 import '../../models/user_address.dart';
 import '../../repositories/shipping_repository.dart';
 import '../../viewmodels/address_viewmodel.dart';
@@ -144,11 +145,10 @@ class _AddressListScreenState extends State<AddressListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: PlasvoraHeader(
-        customTitle: widget.selectionMode
+      appBar: SimplePageAppBar(
+        title: widget.selectionMode
             ? 'Pilih Alamat Tujuan'
             : 'Alamat Pengiriman',
-        showBack: true,
         onBack: () => Navigator.of(context).pop(),
       ),
       body: SafeArea(
@@ -479,7 +479,9 @@ class _AddressListScreenState extends State<AddressListScreen> {
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      address.destinationLabel,
+                      DisplayFormatters.deduplicateLocationLabel(
+                        address.destinationLabel,
+                      ),
                       style: AppTypography.bodySm(
                         color: AppColors.secondary,
                       ).copyWith(fontWeight: FontWeight.w600),

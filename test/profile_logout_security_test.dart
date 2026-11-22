@@ -24,7 +24,10 @@ import 'package:plasvora/viewmodels/marketplace_viewmodel.dart';
 import 'package:plasvora/viewmodels/navigation_viewmodel.dart';
 import 'package:plasvora/views/address/address_list_screen.dart';
 import 'package:plasvora/views/auth/login_screen.dart';
+import 'package:plasvora/views/home/home_screen.dart';
 import 'package:plasvora/views/main_navigation_screen.dart';
+import 'package:plasvora/views/profile/edit_profile_screen.dart';
+import 'package:plasvora/views/profile/profile_screen.dart';
 
 class _MultiAccountFakeAddressRepository implements AddressRepository {
   final InMemoryAuthTokenStorage tokenStorage;
@@ -115,20 +118,30 @@ class _SessionHarness {
   }
 }
 
-Future<void> _openProfileModal(WidgetTester tester) async {
-  final avatarFinder = find.descendant(
-    of: find.byType(PlasvoraHeader),
-    matching: find.byWidgetPredicate(
-      (widget) => widget is GestureDetector && widget.child is ClipRRect,
-    ),
-  );
-  expect(avatarFinder, findsOneWidget);
-  await tester.tap(avatarFinder);
-  await tester.pumpAndSettle();
-  expect(find.text('Profil Akun'), findsOneWidget);
+Future<void> _openProfileTab(
+  WidgetTester tester,
+  NavigationViewModel navVm,
+) async {
+  if (navVm.currentIndex != 3) {
+    final homeHeader = find.descendant(
+      of: find.byType(HomeScreen),
+      matching: find.byType(PlasvoraHeader),
+    );
+    final avatarFinder = find.descendant(
+      of: homeHeader,
+      matching: find.byWidgetPredicate(
+        (widget) => widget is GestureDetector && widget.child is ClipRRect,
+      ),
+    );
+    expect(avatarFinder, findsOneWidget);
+    await tester.tap(avatarFinder);
+    await tester.pumpAndSettle();
+  }
+  expect(navVm.currentIndex, 3);
+  expect(find.byType(ProfileScreen), findsOneWidget);
 }
 
-Future<void> _scrollModalAndTap(WidgetTester tester, Finder finder) async {
+Future<void> _scrollAndTap(WidgetTester tester, Finder finder) async {
   await tester.ensureVisible(finder);
   await tester.pumpAndSettle();
   await tester.tap(finder);
@@ -201,7 +214,7 @@ void main() {
 
   group('Profile Logout Lifecycle & User Session Security', () {
     testWidgets(
-      'Test A — Profile modal opens, closes, and reopens without disposed controller or framework errors',
+      'Test A — EditProfileScreen opens, closes, and reopens cleanly without disposed controller or framework errors',
       (tester) async {
         final storage = InMemoryAuthTokenStorage();
         await storage.saveToken('token-user-a');
@@ -231,28 +244,38 @@ void main() {
         await tester.pumpWidget(harness.buildApp());
         await tester.pumpAndSettle();
 
-        // 1. Buka modal profil & interaksi dengan TextFormField
-        await _openProfileModal(tester);
+        // 1. Navigasi ke tab Profil melalui avatar header lalu buka Edit Profil
+        await _openProfileTab(tester, harness.navigationViewModel);
         expect(find.text('Pengguna A'), findsOneWidget);
+        await _scrollAndTap(tester, find.text('Edit Profil'));
+        await tester.pumpAndSettle();
+        expect(find.byType(EditProfileScreen), findsOneWidget);
+
         await tester.enterText(find.byType(TextFormField), '081299998888');
         await tester.pump();
 
-        // 2. Tutup modal profil dan biarkan animasi dismiss selesai sepenuhnya
-        Navigator.of(tester.element(find.text('Profil Akun'))).pop();
+        // 2. Kembali ke ProfileScreen melalui tombol back aktual SimplePageAppBar
+        final backButton = find.descendant(
+          of: find.byType(EditProfileScreen),
+          matching: find.widgetWithIcon(IconButton, Icons.arrow_back),
+        );
+        expect(backButton, findsOneWidget);
+        await tester.tap(backButton);
         await tester.pumpAndSettle();
-        expect(find.text('Profil Akun'), findsNothing);
+        expect(find.byType(EditProfileScreen), findsNothing);
         expect(tester.takeException(), isNull);
 
-        // 3. Buka kembali modal profil — controller baru dibuat bersih
-        await _openProfileModal(tester);
-        expect(find.text('Profil Akun'), findsOneWidget);
+        // 3. Buka kembali Edit Profil — controller baru dibuat bersih dari state server
+        await _scrollAndTap(tester, find.text('Edit Profil'));
+        await tester.pumpAndSettle();
+        expect(find.byType(EditProfileScreen), findsOneWidget);
         expect(find.text('6281234567890'), findsOneWidget);
         expect(tester.takeException(), isNull);
       },
     );
 
     testWidgets(
-      'Test B — Kelola Alamat Pengiriman waits for profile modal removal before pushing AddressListScreen',
+      'Test B — Kelola Alamat Pengiriman pushes AddressListScreen and returns cleanly to ProfileScreen',
       (tester) async {
         final storage = InMemoryAuthTokenStorage();
         await storage.saveToken('token-user-a');
@@ -299,23 +322,15 @@ void main() {
         await tester.pumpWidget(harness.buildApp());
         await tester.pumpAndSettle();
 
-        await _openProfileModal(tester);
-        await _scrollModalAndTap(tester, find.text('Kelola Alamat Pengiriman'));
-
-        // Pada frame awal tepat setelah pop dimulai, modal masih animasi keluar
-        // sehingga AddressListScreen belum boleh di-push.
-        await tester.pump();
-        expect(find.byType(AddressListScreen), findsNothing);
-
-        // Setelah TransitionRoute.completed selesai, modal hilang dan AddressListScreen tampil.
+        await _openProfileTab(tester, harness.navigationViewModel);
+        await _scrollAndTap(tester, find.text('Kelola Alamat Pengiriman'));
         await tester.pumpAndSettle();
-        expect(find.text('Profil Akun'), findsNothing);
+
         expect(find.byType(AddressListScreen), findsOneWidget);
         expect(find.text('Rumah A'), findsOneWidget);
         expect(tester.takeException(), isNull);
 
-        // Kembali ke HomeScreen via tombol back aktual di PlasvoraHeader AddressListScreen
-        // lalu buka ulang modal profil tanpa lifecycle error.
+        // Kembali ke ProfileScreen via tombol back aktual di SimplePageAppBar AddressListScreen
         final backButton = find.descendant(
           of: find.byType(AddressListScreen),
           matching: find.widgetWithIcon(IconButton, Icons.arrow_back),
@@ -324,15 +339,13 @@ void main() {
         await tester.tap(backButton);
         await tester.pumpAndSettle();
         expect(find.byType(AddressListScreen), findsNothing);
-
-        await _openProfileModal(tester);
-        expect(find.text('Profil Akun'), findsOneWidget);
+        expect(find.byType(ProfileScreen), findsOneWidget);
         expect(tester.takeException(), isNull);
       },
     );
 
     testWidgets(
-      'Test C — Logout waits for modal removal before switching PlasvoraApp to LoginScreen and clears local token',
+      'Test C — Logout asks confirmation before switching PlasvoraApp to LoginScreen and clears local token',
       (tester) async {
         final storage = InMemoryAuthTokenStorage();
         await storage.saveToken('token-user-a');
@@ -373,21 +386,21 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.byType(MainNavigationScreen), findsOneWidget);
 
-        await _openProfileModal(tester);
-        await _scrollModalAndTap(tester, find.text('Keluar dari Akun'));
+        await _openProfileTab(tester, harness.navigationViewModel);
+        await _scrollAndTap(tester, find.text('Keluar dari Akun'));
+        await tester.pumpAndSettle();
 
-        // Tepat setelah tombol ditekan (t = 0ms): modal baru mulai animasi tutup,
-        // sehingga logout BELUM dipanggil dan MainNavigationScreen belum dibongkar.
-        await tester.pump();
+        // Dialog konfirmasi harus muncul sebelum logout dijalankan
+        expect(find.text('Keluar dari Akun?'), findsOneWidget);
         expect(logoutRequestCount, 0);
         expect(find.byType(MainNavigationScreen), findsOneWidget);
         expect(find.byType(LoginScreen), findsNothing);
 
-        // Setelah TransitionRoute.completed selesai, logout dieksekusi & beralih ke LoginScreen.
+        // Konfirmasi keluar
+        await tester.tap(find.text('Keluar'));
         await tester.pumpAndSettle();
 
         expect(tester.takeException(), isNull);
-        expect(find.text('Profil Akun'), findsNothing);
         expect(find.byType(MainNavigationScreen), findsNothing);
         expect(find.byType(LoginScreen), findsOneWidget);
         expect(logoutRequestCount, 1);
@@ -453,7 +466,10 @@ void main() {
                   200,
                 );
               }
-              return http.Response(jsonEncode({'message': 'Unauthenticated'}), 401);
+              return http.Response(
+                jsonEncode({'message': 'Unauthenticated'}),
+                401,
+              );
             }
             if (request.url.path.endsWith('/api/logout')) {
               return http.Response(jsonEncode({'success': true}), 200);
@@ -489,9 +505,11 @@ void main() {
           'Jl. Privat User A No. 99',
         );
 
-        // 2. User A keluar melalui modal Profil Akun
-        await _openProfileModal(tester);
-        await _scrollModalAndTap(tester, find.text('Keluar dari Akun'));
+        // 2. User A keluar melalui tab Profil
+        await _openProfileTab(tester, harness.navigationViewModel);
+        await _scrollAndTap(tester, find.text('Keluar dari Akun'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Keluar'));
         await tester.pumpAndSettle();
 
         expect(find.byType(LoginScreen), findsOneWidget);
@@ -511,9 +529,9 @@ void main() {
         // Sebelum memuat alamat B, tidak boleh ada sisa alamat A
         expect(harness.addressViewModel.addresses, isEmpty);
 
-        // 4. User B membuka Buku Alamat dan hanya melihat alamat User B
-        await _openProfileModal(tester);
-        await _scrollModalAndTap(tester, find.text('Kelola Alamat Pengiriman'));
+        // 4. User B membuka Buku Alamat dari tab Profil dan hanya melihat alamat User B
+        await _openProfileTab(tester, harness.navigationViewModel);
+        await _scrollAndTap(tester, find.text('Kelola Alamat Pengiriman'));
         await tester.pumpAndSettle();
 
         expect(find.byType(AddressListScreen), findsOneWidget);
@@ -565,8 +583,10 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.byType(MainNavigationScreen), findsOneWidget);
 
-        await _openProfileModal(tester);
-        await _scrollModalAndTap(tester, find.text('Keluar dari Akun'));
+        await _openProfileTab(tester, harness.navigationViewModel);
+        await _scrollAndTap(tester, find.text('Keluar dari Akun'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Keluar'));
         await tester.pumpAndSettle();
 
         expect(tester.takeException(), isNull);
