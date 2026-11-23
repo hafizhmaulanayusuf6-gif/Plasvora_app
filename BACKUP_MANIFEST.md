@@ -1600,3 +1600,32 @@ Direktori Backup Fisik:
 $bak = "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_ui_ux_refinement_nav_restructure_fe"
 Copy-Item "$bak\*" "C:\Project\Plasvora_app\" -Recurse -Force
 ```
+
+
+
+---
+
+## 48. Backup Targeted UI Refinement — Checkout Sticky Bottom Payment Bar (`checkout_screen.dart` & `checkout_screen_test.dart`)
+
+**Tanggal**: 23 November 2026  
+**Fitur**: Stage 3 — Targeted UI Refinement (Checkout Sticky Bottom Payment Bar)  
+**Tujuan**:
+1. Menyempurnakan keseimbangan visual Sticky Bottom Payment Bar pada `lib/views/checkout/checkout_screen.dart`:
+   - Area kiri menampilkan label `Total Pembayaran` (`AppColors.onSurfaceVariant`) dan nominal besar tegas (`AppTypography.headlineMd`, `AppColors.primaryContainer`, `FontWeight.w800`) hanya satu kali tanpa pengulangan di tombol.
+   - Area kanan menggunakan label tombol `Bayar Sekarang` dengan tinggi 52 px, `BorderRadius.circular(16)` (menggantikan bentuk kapsul `StadiumBorder`), warna primary Plasvora (`AppColors.primaryContainer`), teks putih semibold terpusat (`FontWeight.w600`), serta lebar proporsional (`minimumSize: const Size(152, 52)` + `maxWidth: constraints.maxWidth * 0.58`).
+   - Mempertahankan `Row(crossAxisAlignment: CrossAxisAlignment.center)` dengan jarak 16 px, `LayoutBuilder` adaptif (bertumpuk vertikal secara otomatis bila lebar sangat sempit `< 310` atau skala font sangat besar `>= 1.45` di `< 360`), `DecoratedBox` dengan top border halus, `SafeArea(top: false)`, dan padding ringkas `16 x 12 px`.
+   - Seluruh logika finansial, validasi enabled/disabled, state loading, pencegahan double-tap, dan idempotency key tidak diubah.
+2. Memperbarui assertion label tombol pada `test/checkout_screen_test.dart` agar selaras dengan label baru `Bayar Sekarang` dan label `Total Pembayaran`.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_checkout_sticky_payment_bar_fe\`
+
+### File Eksisting yang Di-backup & Dimodifikasi (2 file):
+1. `lib/views/checkout/checkout_screen.dart`
+2. `test/checkout_screen_test.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+$bak = "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_checkout_sticky_payment_bar_fe"
+Copy-Item "$bak\*" "C:\Project\Plasvora_app\" -Recurse -Force
+```

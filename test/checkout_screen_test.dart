@@ -497,10 +497,12 @@ void main() {
       expect(find.text('Tambah Alamat'), findsOneWidget);
       expect(find.text('Biaya Platform'), findsNothing);
 
+      expect(find.text('Total Pembayaran'), findsOneWidget);
       final submitButton = tester.widget<ElevatedButton>(
-        find.widgetWithText(ElevatedButton, 'Bayar Rp 50.000'),
+        find.widgetWithText(ElevatedButton, 'Bayar Sekarang'),
       );
       expect(submitButton.onPressed, isNull);
+      expect(find.text('Bayar Rp 50.000'), findsNothing);
     });
 
     testWidgets('selects courier, recalculates on address change, reuses idempotency key on retry, and prevents double tap', (tester) async {
@@ -572,7 +574,8 @@ void main() {
 
       await tester.tap(jneOption);
       await tester.pumpAndSettle();
-      expect(find.text('Bayar Rp 68.000'), findsOneWidget);
+      expect(find.text('Rp 68.000'), findsWidgets);
+      expect(find.text('Bayar Sekarang'), findsOneWidget);
 
       // Ganti alamat ke addr2 -> pilihan kurir lama dibersihkan & ongkir baru dihitung
       addressVm.selectAddress(2);
@@ -589,7 +592,7 @@ void main() {
       expect(
         tester
             .widget<ElevatedButton>(
-              find.widgetWithText(ElevatedButton, 'Bayar Rp 50.000'),
+              find.widgetWithText(ElevatedButton, 'Bayar Sekarang'),
             )
             .onPressed,
         isNull,
@@ -600,7 +603,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(jneOption);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Bayar Rp 75.000'));
+      await tester.tap(find.text('Bayar Sekarang'));
       await tester.pumpAndSettle();
 
       // Recovery button muncul untuk reconciliationOrderId & payload asli tidak berubah
@@ -621,7 +624,7 @@ void main() {
       final holdCompleter = Completer<OrderItem>();
       orderRepo.holdCreate = holdCompleter;
 
-      await tester.tap(find.text('Bayar Rp 75.000'));
+      await tester.tap(find.text('Bayar Sekarang'));
       await tester.pump();
 
       expect(orderVm.isCreatingOrder, isTrue);
@@ -736,7 +739,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('TIKI ONS'), findsOneWidget);
-      expect(find.text('Bayar Rp 85.000'), findsOneWidget);
+      expect(find.text('Rp 85.000'), findsWidgets);
+      expect(find.text('Bayar Sekarang'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
@@ -786,7 +790,8 @@ void main() {
       expect(find.text('Ringkasan Material'), findsOneWidget);
       expect(find.text('PET Bening 10kg'), findsOneWidget);
       expect(find.text('Gagal mengambil alamat dari server.'), findsOneWidget);
-      expect(find.text('Bayar Rp 50.000'), findsOneWidget);
+      expect(find.text('Total Pembayaran'), findsOneWidget);
+      expect(find.text('Bayar Sekarang'), findsOneWidget);
 
       // Coba Lagi -> alamat termuat -> opsi kurir kosong menampilkan pesan & aksi pemulihan
       await tester.ensureVisible(find.text('Coba Lagi'));

@@ -389,90 +389,138 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ],
             ),
           ),
-          bottomNavigationBar: SafeArea(
-            top: false,
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceContainerLowest,
-                border: Border(
-                  top: BorderSide(
-                    color: AppColors.outlineVariant.withValues(alpha: 0.65),
-                  ),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 4,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _selectedOption != null
-                              ? 'Total Estimasi'
-                              : 'Harga Material',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTypography.labelSm(
-                            color: AppColors.onSurfaceVariant,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          MaterialListing.formatRupiah(displayedTotal),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTypography.headlineSm(
-                            color: AppColors.primaryContainer,
-                          ).copyWith(fontWeight: FontWeight.w800),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Flexible(
-                    flex: 5,
-                    child: SizedBox(
-                      height: 48,
-                      child: ElevatedButton(
-                        onPressed: canSubmit ? _handleSubmitCheckout : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryContainer,
-                          foregroundColor: Colors.white,
-                          // Override AppTheme.lightTheme's Size.fromHeight(50) (infinite width)
-                          // so this Row child never triggers unbounded-width layout failure.
-                          minimumSize: const Size(140, 48),
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          shape: const StadiumBorder(),
-                        ),
-                        child: orderVm.isCreatingOrder
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : Text(
-                                'Bayar ${MaterialListing.formatRupiah(displayedTotal)}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: AppTypography.labelMd(
-                                  color: Colors.white,
-                                ).copyWith(fontWeight: FontWeight.w700),
-                              ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          bottomNavigationBar: _buildStickyPaymentBar(
+            displayedTotal: displayedTotal,
+            canSubmit: canSubmit,
+            isCreatingOrder: orderVm.isCreatingOrder,
           ),
         );
       },
+    );
+  }
+
+  Widget _buildStickyPaymentBar({
+    required int displayedTotal,
+    required bool canSubmit,
+    required bool isCreatingOrder,
+  }) {
+    final formattedTotal = MaterialListing.formatRupiah(displayedTotal);
+
+    Widget buildTotalBlock() {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Total Pembayaran',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.labelMd(
+              color: AppColors.onSurfaceVariant,
+            ).copyWith(fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            formattedTotal,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.headlineMd(
+              color: AppColors.primaryContainer,
+            ).copyWith(fontWeight: FontWeight.w800),
+          ),
+        ],
+      );
+    }
+
+    Widget buildPayButton({required bool fullWidth}) {
+      return SizedBox(
+        width: fullWidth ? double.infinity : null,
+        height: 52,
+        child: ElevatedButton(
+          onPressed: canSubmit ? _handleSubmitCheckout : null,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primaryContainer,
+            foregroundColor: Colors.white,
+            // Override AppTheme.lightTheme's Size.fromHeight(50) (infinite width)
+            // so this button never triggers unbounded-width layout failure inside Row.
+            minimumSize: fullWidth ? const Size(0, 52) : const Size(152, 52),
+            padding: const EdgeInsets.symmetric(horizontal: 18),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            elevation: 0,
+          ),
+          child: isCreatingOrder
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : Text(
+                  'Bayar Sekarang',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: AppTypography.labelLg(
+                    color: Colors.white,
+                  ).copyWith(fontWeight: FontWeight.w600),
+                ),
+        ),
+      );
+    }
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        border: Border(
+          top: BorderSide(
+            color: AppColors.outlineVariant.withValues(alpha: 0.55),
+          ),
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+              final useStackedLayout =
+                  constraints.maxWidth < 310 ||
+                  (constraints.maxWidth < 360 && textScale >= 1.45);
+
+              if (useStackedLayout) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    buildTotalBlock(),
+                    const SizedBox(height: 10),
+                    buildPayButton(fullWidth: true),
+                  ],
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(child: buildTotalBlock()),
+                  const SizedBox(width: 16),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: constraints.maxWidth * 0.58,
+                    ),
+                    child: buildPayButton(fullWidth: false),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
     );
   }
 
