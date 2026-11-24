@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
+import '../../viewmodels/navigation_viewmodel.dart';
 
 class AppBottomNav extends StatelessWidget {
   final int currentIndex;
@@ -36,36 +37,54 @@ class AppBottomNav extends StatelessWidget {
           ),
           child: SafeArea(
             top: false,
-            child: SizedBox(
-              height: 64,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildNavItem(
-                    index: 0,
-                    icon: Icons.home_outlined,
-                    activeIcon: Icons.home,
-                    label: 'Beranda',
-                  ),
-                  _buildNavItem(
-                    index: 1,
-                    icon: Icons.document_scanner_outlined,
-                    activeIcon: Icons.document_scanner,
-                    label: 'Analisis',
-                  ),
-                  _buildNavItem(
-                    index: 2,
-                    icon: Icons.storefront_outlined,
-                    activeIcon: Icons.storefront,
-                    label: 'Marketplace',
-                  ),
-                  _buildNavItem(
-                    index: 3,
-                    icon: Icons.person_outline,
-                    activeIcon: Icons.person,
-                    label: 'Profil',
-                  ),
-                ],
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 64),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildNavItem(
+                        index: NavigationViewModel.homeIndex,
+                        icon: Icons.home_outlined,
+                        activeIcon: Icons.home,
+                        label: 'Beranda',
+                      ),
+                    ),
+                    Expanded(
+                      child: _buildNavItem(
+                        index: NavigationViewModel.analysisIndex,
+                        icon: Icons.document_scanner_outlined,
+                        activeIcon: Icons.document_scanner,
+                        label: 'Analisis',
+                      ),
+                    ),
+                    Expanded(
+                      child: _buildNavItem(
+                        index: NavigationViewModel.marketplaceIndex,
+                        icon: Icons.storefront_outlined,
+                        activeIcon: Icons.storefront,
+                        label: 'Marketplace',
+                      ),
+                    ),
+                    Expanded(
+                      child: _buildNavItem(
+                        index: NavigationViewModel.galleryIndex,
+                        icon: Icons.auto_awesome_mosaic_outlined,
+                        activeIcon: Icons.auto_awesome_mosaic,
+                        label: 'Galeri',
+                      ),
+                    ),
+                    Expanded(
+                      child: _buildNavItem(
+                        index: NavigationViewModel.profileIndex,
+                        icon: Icons.person_outline,
+                        activeIcon: Icons.person,
+                        label: 'Profil',
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -82,45 +101,59 @@ class AppBottomNav extends StatelessWidget {
   }) {
     final bool isActive = currentIndex == index;
 
-    return InkWell(
-      onTap: () => onTabSelected(index),
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              decoration: BoxDecoration(
-                color: isActive
-                    ? AppColors.secondaryContainer
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(999),
+    return Semantics(
+      button: true,
+      selected: isActive,
+      label: label,
+      child: InkWell(
+        onTap: () => onTabSelected(index),
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: isActive
+                      ? AppColors.secondaryContainer
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Icon(
+                  isActive ? activeIcon : icon,
+                  size: 21,
+                  color: isActive
+                      ? AppColors.primaryContainer
+                      : AppColors.textSecondary,
+                ),
               ),
-              child: Icon(
-                isActive ? activeIcon : icon,
-                size: 22,
-                color: isActive
-                    ? AppColors.primaryContainer
-                    : AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style:
-                  AppTypography.labelSm(
+              const SizedBox(height: 2),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.labelSm(
                     color: isActive
                         ? AppColors.primaryContainer
                         : AppColors.textSecondary,
                   ).copyWith(
+                    fontSize: 10.5,
                     fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
                   ),
-            ),
-          ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

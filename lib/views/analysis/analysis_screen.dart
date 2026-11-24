@@ -9,6 +9,7 @@ import '../../core/widgets/plasvora_header.dart';
 import '../../repositories/shipping_repository.dart';
 import '../../viewmodels/analysis_viewmodel.dart';
 import '../../viewmodels/auth_viewmodel.dart';
+import '../../viewmodels/gallery_viewmodel.dart';
 import '../../viewmodels/marketplace_viewmodel.dart';
 import '../../viewmodels/navigation_viewmodel.dart';
 import '../auth/login_screen.dart';
@@ -20,6 +21,7 @@ class AnalysisScreen extends StatefulWidget {
   final AuthViewModel? authViewModel;
   final MarketplaceViewModel? marketplaceViewModel;
   final ShippingRepository? shippingRepository;
+  final GalleryViewModel? galleryViewModel;
 
   const AnalysisScreen({
     super.key,
@@ -28,6 +30,7 @@ class AnalysisScreen extends StatefulWidget {
     this.authViewModel,
     this.marketplaceViewModel,
     this.shippingRepository,
+    this.galleryViewModel,
   });
 
   @override
@@ -748,6 +751,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                             navigationViewModel: widget.navigationViewModel,
                             marketplaceViewModel: widget.marketplaceViewModel,
                             shippingRepository: widget.shippingRepository,
+                            authViewModel: widget.authViewModel,
+                            galleryViewModel: widget.galleryViewModel,
                           ),
                         ),
                       );

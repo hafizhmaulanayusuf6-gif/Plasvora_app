@@ -372,6 +372,71 @@ class ApiClient {
     }
   }
 
+  /// Mengirim request multipart/form-data dengan dukungan array field & banyak file.
+  ///
+  /// Array fields dikirim dengan key berindeks (`materials[0]`, `materials[1]`, ...)
+  /// yang diparsing secara native oleh PHP/Laravel menjadi array terurut.
+  Future<dynamic> postMultipartForm(
+    String url, {
+    Map<String, String>? fields,
+    Map<String, List<String>>? arrayFields,
+    String fileField = 'images[]',
+    List<String>? filePaths,
+    bool requiresAuth = true,
+  }) async {
+    try {
+      final request = http.MultipartRequest('POST', Uri.parse(url));
+
+      request.headers['Accept'] = 'application/json';
+      request.headers['ngrok-skip-browser-warning'] = 'true';
+      if (requiresAuth) {
+        final token = await getToken();
+        if (token != null && token.isNotEmpty) {
+          request.headers['Authorization'] = 'Bearer $token';
+        }
+      }
+
+      if (fields != null) {
+        request.fields.addAll(fields);
+      }
+
+      if (arrayFields != null) {
+        for (final entry in arrayFields.entries) {
+          for (var i = 0; i < entry.value.length; i++) {
+            request.fields['${entry.key}[$i]'] = entry.value[i];
+          }
+        }
+      }
+
+      if (filePaths != null) {
+        for (final path in filePaths) {
+          if (path.isEmpty) continue;
+          final file = File(path);
+          if (await file.exists()) {
+            request.files.add(
+              await http.MultipartFile.fromPath(fileField, path),
+            );
+          }
+        }
+      }
+
+      final streamedResponse = await _client.send(request).timeout(
+        const Duration(seconds: 90),
+        onTimeout: () => throw TimeoutException(
+          'Waktu tunggu koneksi ke server habis (timeout).',
+        ),
+      );
+      final response = await http.Response.fromStream(streamedResponse);
+      return _processResponse(response);
+    } on SocketException {
+      throw ApiException('Tidak dapat terhubung ke server backend');
+    } on TimeoutException {
+      throw ApiException('Waktu tunggu upload ke server habis (timeout).');
+    } on http.ClientException catch (e) {
+      throw ApiException('Gagal berkomunikasi dengan backend: ${e.message}');
+    }
+  }
+
   Future<dynamic> patch(
     String url, {
     Map<String, dynamic>? body,

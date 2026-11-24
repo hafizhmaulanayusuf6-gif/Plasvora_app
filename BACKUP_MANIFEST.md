@@ -1629,3 +1629,134 @@ Direktori Backup Fisik:
 $bak = "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_checkout_sticky_payment_bar_fe"
 Copy-Item "$bak\*" "C:\Project\Plasvora_app\" -Recurse -Force
 ```
+
+
+---
+
+## 49. Backup Fitur Galeri Karya ("Galeri Karya" — End-to-End Flutter)
+
+**Tanggal**: 23 November 2026  
+**Tujuan**:
+1. Menambahkan fondasi fitur Galeri Karya: `VideoLinkValidator`, endpoint galeri di `ApiConfig`, metode multipart aditif `ApiClient.postMultipartForm()`, model `GalleryWork` & `GalleryWorkDraft`, `GalleryRepository` (`ApiGalleryRepository` & `MockGalleryRepository`), serta `GalleryViewModel` dengan pagination, optimistic like + rollback, stale-response guard, dan `clearUserData()`.
+2. Memperluas navigasi utama menjadi 5 tab (`Beranda | Analisis | Marketplace | Galeri | Profil`) pada `NavigationViewModel`, `AppBottomNav`, `MainNavigationScreen`, dan `main.dart` dengan isolasi sesi pada `onSessionCleared`.
+3. Membangun 4 layar Galeri Karya (`GalleryScreen`, `GalleryDetailScreen`, `CreateGalleryWorkScreen`, `MyGalleryWorksScreen`) beserta komponen bersama `gallery_widgets.dart`.
+4. Mengintegrasikan menu `Karya Saya` dan pembersihan cache pada `ProfileScreen`, serta tombol `Bagikan ke Galeri` (dengan prefill `GalleryWorkDraft` tanpa foto) pada `AnalysisResultScreen` (diteruskan dari `AnalysisScreen` dan `ActivityScreen`).
+5. Memperbarui indeks tab Profil pada test eksisting (`profile_logout_security_test.dart`, `profile_navigation_refinement_test.dart`) dan menambahkan suite pengujian komprehensif `test/gallery_feature_test.dart`.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_gallery_feature_fe\`
+
+### File Eksisting yang Di-backup & Dimodifikasi:
+1. `lib/core/network/api_config.dart`
+2. `lib/core/network/api_client.dart`
+3. `lib/viewmodels/navigation_viewmodel.dart`
+4. `lib/core/widgets/app_bottom_nav.dart`
+5. `lib/views/main_navigation_screen.dart`
+6. `lib/main.dart`
+7. `lib/views/profile/profile_screen.dart`
+8. `lib/views/analysis/analysis_screen.dart`
+9. `lib/views/activity/activity_screen.dart`
+10. `lib/views/analysis/analysis_result_screen.dart`
+11. `test/profile_logout_security_test.dart`
+12. `test/profile_navigation_refinement_test.dart`
+
+### File Baru yang Dibuat:
+1. `lib/core/utils/video_link_validator.dart`
+2. `lib/models/gallery_work.dart`
+3. `lib/repositories/gallery_repository.dart`
+4. `lib/viewmodels/gallery_viewmodel.dart`
+5. `lib/views/gallery/gallery_widgets.dart`
+6. `lib/views/gallery/gallery_screen.dart`
+7. `lib/views/gallery/gallery_detail_screen.dart`
+8. `lib/views/gallery/create_gallery_work_screen.dart`
+9. `lib/views/gallery/my_gallery_works_screen.dart`
+10. `test/gallery_feature_test.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+$bak = "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_gallery_feature_fe"
+Copy-Item "$bak\*" "C:\Project\Plasvora_app\" -Recurse -Force
+```
+
+
+---
+
+## 50. Backup Targeted Fix — Gallery Feature Test Compilation Errors
+
+**Tanggal**: 23 November 2026  
+**Tujuan**:
+1. Memperbaiki dua error kompilasi pada `test/gallery_feature_test.dart` (`onToggleLike` dan `onFetchMyWorks` yang keliru terikat pada `GalleryPage` akibat presedensi operator cascade `..` terhadap arrow function `=>`).
+2. Mengonversi `_ControllableGalleryRepository` agar menerima callback melalui named constructor parameters (`final`) sehingga seluruh skenario fake repository (toggle like rollback, stale `fetchMyWorks`, pagination, stale search) eksplisit dan aman dari ambiguitas presedensi cascade.
+3. Mempersempit finder chip filter (`ChoiceChip`) pada test `GalleryScreen` agar tidak bertabrakan dengan badge tingkat kesulitan pada kartu.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_gallery_test_fix_fe\`
+
+### File Eksisting yang Di-backup & Dimodifikasi (1 file):
+1. `test/gallery_feature_test.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+$bak = "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_gallery_test_fix_fe"
+Copy-Item "$bak\*" "C:\Project\Plasvora_app\" -Recurse -Force
+```
+
+
+---
+
+## 51. Backup Gallery Regression Fix — Responsive HomeScreen & Duplicate FAB Hero Tags
+
+**Tanggal**: 23 November 2026  
+**Tujuan**:
+1. Memperbaiki RenderFlex overflow pada `lib/views/home/home_screen.dart` pada viewport `360dp` dengan skala teks `1.3x`:
+   - Header `Pasar Terkini` (overflow 23px): membungkus kolom judul/subjudul dengan `Expanded` + jarak aman `12px` terhadap aksi `Lihat semua`.
+   - Grid & kartu `Pasar Terkini` (overflow 31px & 35px pada `maxWidth: 80.7`): mengubah tata letak 3 kartu sejajar menjadi grid responsif berbasis `LayoutBuilder` (2 kolom pada lebar `< 460dp`, 3 kolom pada layar lebar) dan melindungi baris harga + ikon di `_buildListingCard` dengan `Expanded` + `FittedBox(fit: BoxFit.scaleDown)` agar harga tidak pernah overflow maupun terpotong.
+   - Proteksi preventif pada header/baris terkait di `HomeScreen` (`_buildPrimaryScanCard`, `_buildQuickActions` + `_buildActionTile`, `_buildImpactSummary`, metadata berat kartu) agar aman pada skala teks besar.
+2. Menghilangkan kolisi Hero tag `<default FloatingActionButton tag>` antar tab yang aktif bersamaan dalam `IndexedStack` di `MainNavigationScreen` dengan menetapkan `heroTag: null` secara eksplisit pada seluruh FAB tab root (`GalleryScreen` dan `MarketplaceScreen`).
+3. Memperbaiki dua isu uji tambahan yang ditemukan lewat inspeksi source code pada `test/gallery_feature_test.dart`: decoding byte multipart biner dengan `latin1.decode(request.bodyBytes)` alih-alih `request.body` (UTF-8 ketat), serta `ensureVisible` + menunggu `SnackBar` validasi selesai sebelum mengetuk tombol submit pada test `CreateGalleryWorkScreen`.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_gallery_regression_fix_fe\`
+
+### File Eksisting yang Di-backup & Dimodifikasi (4 file):
+1. `lib/views/home/home_screen.dart`
+2. `lib/views/marketplace/marketplace_screen.dart`
+3. `lib/views/gallery/gallery_screen.dart`
+4. `test/gallery_feature_test.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+$bak = "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_gallery_regression_fix_fe"
+Copy-Item "$bak\*" "C:\Project\Plasvora_app\" -Recurse -Force
+```
+
+
+
+---
+
+## 52. Backup Perbaikan Alur Publikasi Langsung Galeri Karya (Keep Ownership Declaration, Posting CTA, Badge Tayang & Feed Refresh — Frontend)
+
+**Tanggal**: 23 November 2026  
+**Tujuan**:
+1. Mempertahankan checkbox pernyataan kepemilikan (`Saya menyatakan bahwa karya dan foto ini adalah milik saya sendiri serta aman dibagikan ke komunitas Plasvora.`) sebagai syarat wajib submit pada `CreateGalleryWorkScreen`, sambil menghapus seluruh teks moderasi/verifikasi admin (termasuk banner verifikasi ulang pada mode edit).
+2. Mengubah tombol aksi utama pembuatan karya menjadi `Posting` yang nonaktif sampai seluruh field wajib dan pernyataan kepemilikan valid, dilengkapi indikator loading anti-double-submit, pesan SnackBar `Karya berhasil diposting dan sekarang tampil di Galeri!`, serta penyegaran otomatis feed publik `GalleryViewModel` tanpa panggilan API ganda.
+3. Mengubah label status tayang `GalleryWorkStatus.approved` menjadi `Tayang` dan memastikan `MyGalleryWorksScreen` menampilkan badge berdasarkan status tersimpan dari backend (bukan hardcoded dan tidak fallback ke `pending`).
+4. Menyelaraskan `MockGalleryRepository`, `GalleryViewModel` (create/update sync), `GalleryDetailScreen` (copy status tayang & like guard), serta memperbarui dan menambah skenario pengujian di `test/gallery_feature_test.dart`.
+
+Direktori Backup Fisik:
+`C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_gallery_publication_flow_fe\`
+
+### File Eksisting yang Di-backup & Dimodifikasi (7 file):
+1. `lib/models/gallery_work.dart`
+2. `lib/repositories/gallery_repository.dart`
+3. `lib/viewmodels/gallery_viewmodel.dart`
+4. `lib/views/gallery/create_gallery_work_screen.dart`
+5. `lib/views/gallery/my_gallery_works_screen.dart`
+6. `lib/views/gallery/gallery_detail_screen.dart`
+7. `test/gallery_feature_test.dart`
+
+### Langkah Pemulihan (Non-Git):
+```powershell
+$bak = "C:\Users\PPLG\.gemini\antigravity\brain\d907174e-f225-41e2-a0df-e727922bd3aa\backup_gallery_publication_flow_fe"
+Copy-Item "$bak\*" "C:\Project\Plasvora_app\" -Recurse -Force
+```

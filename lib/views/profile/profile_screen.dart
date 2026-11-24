@@ -9,17 +9,19 @@ import '../../repositories/shipping_repository.dart';
 import '../../viewmodels/activity_viewmodel.dart';
 import '../../viewmodels/address_viewmodel.dart';
 import '../../viewmodels/auth_viewmodel.dart';
+import '../../viewmodels/gallery_viewmodel.dart';
 import '../../viewmodels/marketplace_viewmodel.dart';
 import '../../viewmodels/navigation_viewmodel.dart';
 import '../../viewmodels/order_viewmodel.dart';
 import '../activity/activity_screen.dart';
 import '../address/address_list_screen.dart';
 import '../auth/login_screen.dart';
+import '../gallery/my_gallery_works_screen.dart';
 import '../orders/order_list_screen.dart';
 import 'edit_profile_screen.dart';
 
-/// Tab root keempat (Profil) yang memusatkan identitas akun, pesanan, aktivitas,
-/// alamat pengiriman, privasi WhatsApp, dan keluar dari akun.
+/// Tab root kelima (Profil) yang memusatkan identitas akun, pesanan, karya galeri,
+/// aktivitas, alamat pengiriman, privasi WhatsApp, dan keluar dari akun.
 class ProfileScreen extends StatefulWidget {
   final AuthViewModel? authViewModel;
   final ActivityViewModel? activityViewModel;
@@ -28,6 +30,7 @@ class ProfileScreen extends StatefulWidget {
   final ShippingRepository? shippingRepository;
   final MarketplaceViewModel? marketplaceViewModel;
   final NavigationViewModel? navigationViewModel;
+  final GalleryViewModel? galleryViewModel;
 
   const ProfileScreen({
     super.key,
@@ -38,6 +41,7 @@ class ProfileScreen extends StatefulWidget {
     this.shippingRepository,
     this.marketplaceViewModel,
     this.navigationViewModel,
+    this.galleryViewModel,
   });
 
   @override
@@ -97,6 +101,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // Bersihkan cache user-scoped secara defensif sebelum/bersama onSessionCleared.
     widget.addressViewModel?.clearUserData();
     widget.orderViewModel?.clearUserData();
+    widget.galleryViewModel?.clearUserData();
 
     try {
       await authVm.logout();
@@ -242,6 +247,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
         ),
+      if (widget.galleryViewModel != null)
+        _ProfileMenuTile(
+          icon: Icons.auto_awesome_mosaic_outlined,
+          label: 'Karya Saya',
+          onTap: () => _pushOnce(
+            MyGalleryWorksScreen(
+              viewModel: widget.galleryViewModel!,
+              authViewModel: authVm,
+            ),
+          ),
+        ),
       _ProfileMenuTile(
         icon: Icons.history_outlined,
         label: 'Aktivitas',
@@ -253,6 +269,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             shippingRepository: widget.shippingRepository,
             orderViewModel: widget.orderViewModel,
             authViewModel: authVm,
+            galleryViewModel: widget.galleryViewModel,
           ),
         ),
       ),

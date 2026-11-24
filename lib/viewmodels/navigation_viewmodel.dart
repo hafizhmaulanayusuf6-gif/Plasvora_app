@@ -1,7 +1,13 @@
 import 'package:flutter/foundation.dart';
 
 class NavigationViewModel extends ChangeNotifier {
-  int _currentIndex = 0;
+  static const int homeIndex = 0;
+  static const int analysisIndex = 1;
+  static const int marketplaceIndex = 2;
+  static const int galleryIndex = 3;
+  static const int profileIndex = 4;
+
+  int _currentIndex = homeIndex;
 
   int get currentIndex => _currentIndex;
 
@@ -12,9 +18,10 @@ class NavigationViewModel extends ChangeNotifier {
     }
   }
 
-  void goToHome() => setIndex(0);
-  void goToAnalysis() => setIndex(1);
-  void goToMarketplace() => setIndex(2);
-  void goToProfile() => setIndex(3);
-  void goToActivity() => setIndex(3);
+  void goToHome() => setIndex(homeIndex);
+  void goToAnalysis() => setIndex(analysisIndex);
+  void goToMarketplace() => setIndex(marketplaceIndex);
+  void goToGallery() => setIndex(galleryIndex);
+  void goToProfile() => setIndex(profileIndex);
+  void goToActivity() => setIndex(profileIndex);
 }

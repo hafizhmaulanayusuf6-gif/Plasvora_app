@@ -10,6 +10,7 @@ import '../../models/plastic_analysis.dart';
 import '../../repositories/shipping_repository.dart';
 import '../../viewmodels/activity_viewmodel.dart';
 import '../../viewmodels/auth_viewmodel.dart';
+import '../../viewmodels/gallery_viewmodel.dart';
 import '../../viewmodels/marketplace_viewmodel.dart';
 import '../../viewmodels/navigation_viewmodel.dart';
 import '../../viewmodels/order_viewmodel.dart';
@@ -23,6 +24,7 @@ class ActivityScreen extends StatelessWidget {
   final ShippingRepository? shippingRepository;
   final OrderViewModel? orderViewModel;
   final AuthViewModel? authViewModel;
+  final GalleryViewModel? galleryViewModel;
 
   const ActivityScreen({
     super.key,
@@ -32,6 +34,7 @@ class ActivityScreen extends StatelessWidget {
     this.shippingRepository,
     this.orderViewModel,
     this.authViewModel,
+    this.galleryViewModel,
   });
 
   @override
@@ -462,6 +465,8 @@ class ActivityScreen extends StatelessWidget {
                     navigationViewModel: navigationViewModel!,
                     marketplaceViewModel: marketplaceViewModel,
                     shippingRepository: shippingRepository,
+                    authViewModel: authViewModel,
+                    galleryViewModel: galleryViewModel,
                   ),
                 ),
               );

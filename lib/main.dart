@@ -8,6 +8,7 @@ import 'repositories/activity_repository.dart';
 import 'repositories/address_repository.dart';
 import 'repositories/analysis_repository.dart';
 import 'repositories/auth_repository.dart';
+import 'repositories/gallery_repository.dart';
 import 'repositories/material_repository.dart';
 import 'repositories/order_repository.dart';
 import 'repositories/shipping_repository.dart';
@@ -16,6 +17,7 @@ import 'viewmodels/activity_viewmodel.dart';
 import 'viewmodels/address_viewmodel.dart';
 import 'viewmodels/analysis_viewmodel.dart';
 import 'viewmodels/auth_viewmodel.dart';
+import 'viewmodels/gallery_viewmodel.dart';
 import 'viewmodels/home_viewmodel.dart';
 import 'viewmodels/marketplace_viewmodel.dart';
 import 'viewmodels/matching_viewmodel.dart';
@@ -68,6 +70,10 @@ void main() async {
       ? ApiOrderRepository(apiClient: apiClient)
       : MockOrderRepository();
 
+  final GalleryRepository galleryRepository = useApiRepository
+      ? ApiGalleryRepository(apiClient: apiClient)
+      : MockGalleryRepository();
+
   final navigationViewModel = NavigationViewModel();
   final addressViewModel = AddressViewModel(
     addressRepository: addressRepository,
@@ -75,11 +81,15 @@ void main() async {
   final orderViewModel = OrderViewModel(
     orderRepository: orderRepository,
   );
+  final galleryViewModel = GalleryViewModel(
+    galleryRepository: galleryRepository,
+  );
   final authViewModel = AuthViewModel(
     authRepository: authRepository,
     onSessionCleared: () {
       addressViewModel.clearUserData();
       orderViewModel.clearUserData();
+      galleryViewModel.clearUserData();
     },
   );
   final homeViewModel = HomeViewModel(materialRepository: materialRepository);
@@ -112,6 +122,7 @@ void main() async {
       addressViewModel: addressViewModel,
       shippingRepository: shippingRepository,
       orderViewModel: orderViewModel,
+      galleryViewModel: galleryViewModel,
     ),
   );
 }
@@ -121,6 +132,7 @@ class PlasvoraApp extends StatelessWidget {
   final HomeViewModel homeViewModel;
   final AnalysisViewModel analysisViewModel;
   final MarketplaceViewModel marketplaceViewModel;
+  final GalleryViewModel? galleryViewModel;
   final AuthViewModel? authViewModel;
   final ActivityViewModel? activityViewModel;
   final MaterialRequestViewModel? materialRequestViewModel;
@@ -135,6 +147,7 @@ class PlasvoraApp extends StatelessWidget {
     required this.homeViewModel,
     required this.analysisViewModel,
     required this.marketplaceViewModel,
+    this.galleryViewModel,
     this.authViewModel,
     this.activityViewModel,
     this.materialRequestViewModel,
@@ -161,6 +174,7 @@ class PlasvoraApp extends StatelessWidget {
         homeViewModel: homeViewModel,
         analysisViewModel: analysisViewModel,
         marketplaceViewModel: marketplaceViewModel,
+        galleryViewModel: galleryViewModel,
         authViewModel: authViewModel,
         activityViewModel: activityViewModel,
         materialRequestViewModel: materialRequestViewModel,
@@ -381,6 +395,7 @@ class PlasvoraApp extends StatelessWidget {
             homeViewModel: homeViewModel,
             analysisViewModel: analysisViewModel,
             marketplaceViewModel: marketplaceViewModel,
+            galleryViewModel: galleryViewModel,
             authViewModel: authViewModel,
             activityViewModel: activityViewModel,
             materialRequestViewModel: materialRequestViewModel,
