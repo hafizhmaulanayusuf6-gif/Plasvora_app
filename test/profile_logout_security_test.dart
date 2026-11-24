@@ -122,7 +122,7 @@ Future<void> _openProfileTab(
   WidgetTester tester,
   NavigationViewModel navVm,
 ) async {
-  if (navVm.currentIndex != 3) {
+  if (navVm.currentIndex != NavigationViewModel.profileIndex) {
     final homeHeader = find.descendant(
       of: find.byType(HomeScreen),
       matching: find.byType(PlasvoraHeader),
@@ -137,7 +137,7 @@ Future<void> _openProfileTab(
     await tester.tap(avatarFinder);
     await tester.pumpAndSettle();
   }
-  expect(navVm.currentIndex, 3);
+  expect(navVm.currentIndex, NavigationViewModel.profileIndex);
   expect(find.byType(ProfileScreen), findsOneWidget);
 }
 

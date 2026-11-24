@@ -751,6 +751,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 8, right: 4),
       child: FloatingActionButton.extended(
+        heroTag: null,
         onPressed: () {
           if (widget.materialRequestViewModel != null) {
             Navigator.of(context).push(
@@ -1366,6 +1367,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 8, right: 4),
       child: FloatingActionButton.extended(
+        heroTag: null,
         onPressed: () {
           Navigator.of(context).push(
             MaterialPageRoute(

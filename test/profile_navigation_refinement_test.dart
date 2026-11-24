@@ -192,7 +192,7 @@ void main() {
   });
 
   group('Navigation Restructuring & ProfileScreen Refinement Tests', () {
-    testWidgets('AppBottomNav displays 4 tabs with Profil replacing Aktivitas', (tester) async {
+    testWidgets('AppBottomNav displays 5 tabs including Galeri and Profil', (tester) async {
       final navVm = NavigationViewModel();
       final authVm = AuthViewModel(
         authRepository: _StubAuthRepo(
@@ -232,16 +232,17 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // 4 tab utama di AppBottomNav: Beranda, Analisis, Marketplace, Profil
+      // 5 tab utama di AppBottomNav: Beranda, Analisis, Marketplace, Galeri, Profil
       final bottomNav = find.byType(AppBottomNav);
       expect(bottomNav, findsOneWidget);
       expect(find.descendant(of: bottomNav, matching: find.text('Beranda')), findsOneWidget);
       expect(find.descendant(of: bottomNav, matching: find.text('Analisis')), findsOneWidget);
       expect(find.descendant(of: bottomNav, matching: find.text('Marketplace')), findsOneWidget);
+      expect(find.descendant(of: bottomNav, matching: find.text('Galeri')), findsOneWidget);
       expect(find.descendant(of: bottomNav, matching: find.text('Profil')), findsOneWidget);
       expect(find.descendant(of: bottomNav, matching: find.text('Aktivitas')), findsNothing);
 
-      // Tap avatar di HomeScreen header saat authenticated -> berpindah ke tab Profil (index 3)
+      // Tap avatar di HomeScreen header saat authenticated -> berpindah ke tab Profil (index 4)
       final homeHeader = find.descendant(
         of: find.byType(HomeScreen),
         matching: find.byType(PlasvoraHeader),
@@ -255,13 +256,14 @@ void main() {
       await tester.tap(avatar);
       await tester.pumpAndSettle();
 
-      expect(navVm.currentIndex, 3);
+      expect(navVm.currentIndex, NavigationViewModel.profileIndex);
       expect(find.byType(ProfileScreen), findsOneWidget);
       expect(find.text('Rina Lestari'), findsOneWidget);
       expect(find.text('rina@plasvora.test'), findsOneWidget);
       expect(find.text('+6281234567890'), findsOneWidget);
       expect(find.text('Edit Profil'), findsOneWidget);
       expect(find.text('Pesanan Saya'), findsOneWidget);
+      expect(find.text('Karya Saya'), findsOneWidget);
       expect(find.text('Aktivitas'), findsOneWidget);
       expect(find.text('Kelola Alamat Pengiriman'), findsOneWidget);
       expect(find.text('Visibilitas WhatsApp'), findsOneWidget);

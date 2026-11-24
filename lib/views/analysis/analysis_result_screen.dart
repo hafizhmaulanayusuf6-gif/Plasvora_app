@@ -5,10 +5,15 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/widgets/plasvora_header.dart';
+import '../../models/gallery_work.dart';
 import '../../models/plastic_analysis.dart';
 import '../../repositories/shipping_repository.dart';
+import '../../viewmodels/auth_viewmodel.dart';
+import '../../viewmodels/gallery_viewmodel.dart';
 import '../../viewmodels/marketplace_viewmodel.dart';
 import '../../viewmodels/navigation_viewmodel.dart';
+import '../auth/login_screen.dart';
+import '../gallery/create_gallery_work_screen.dart';
 import '../marketplace/create_material_listing_screen.dart';
 
 class AnalysisResultScreen extends StatefulWidget {
@@ -16,6 +21,8 @@ class AnalysisResultScreen extends StatefulWidget {
   final NavigationViewModel navigationViewModel;
   final MarketplaceViewModel? marketplaceViewModel;
   final ShippingRepository? shippingRepository;
+  final AuthViewModel? authViewModel;
+  final GalleryViewModel? galleryViewModel;
 
   const AnalysisResultScreen({
     super.key,
@@ -23,6 +30,8 @@ class AnalysisResultScreen extends StatefulWidget {
     required this.navigationViewModel,
     this.marketplaceViewModel,
     this.shippingRepository,
+    this.authViewModel,
+    this.galleryViewModel,
   });
 
   @override
@@ -1115,6 +1124,38 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
     return '~1-2 jam';
   }
 
+  void _openShareIdeaToGallery(UpcyclingIdea idea) {
+    final galleryVm = widget.galleryViewModel;
+    if (galleryVm == null) return;
+
+    final authVm = widget.authViewModel;
+    if (authVm != null && !authVm.isAuthenticated) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Masuk terlebih dahulu untuk membagikan karya ke Galeri.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => LoginScreen(authViewModel: authVm),
+        ),
+      );
+      return;
+    }
+
+    final draft = GalleryWorkDraft.fromUpcyclingIdea(idea, widget.result);
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CreateGalleryWorkScreen(
+          viewModel: galleryVm,
+          authViewModel: authVm,
+          initialDraft: draft,
+        ),
+      ),
+    );
+  }
+
   Widget _buildIdeaCard(UpcyclingIdea idea) {
     // Resolve nama komponen yang dipakai ide
     String componentTag = '';
@@ -1290,6 +1331,39 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
                       ),
                     ],
                   ),
+                  if (widget.galleryViewModel != null) ...[
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _openShareIdeaToGallery(idea),
+                        icon: const Icon(
+                          Icons.auto_awesome_mosaic_outlined,
+                          size: 15,
+                          color: AppColors.primary,
+                        ),
+                        label: Text(
+                          'Bagikan ke Galeri',
+                          style: AppTypography.labelSm(
+                            color: AppColors.primary,
+                          ).copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: BorderSide(
+                            color: AppColors.primary.withValues(alpha: 0.4),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          minimumSize: const Size(0, 34),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: const StadiumBorder(),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1494,6 +1568,30 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
                     ),
                   ],
                   const SizedBox(height: 24),
+                  if (widget.galleryViewModel != null) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _openShareIdeaToGallery(idea);
+                        },
+                        icon: const Icon(
+                          Icons.auto_awesome_mosaic_outlined,
+                          size: 18,
+                          color: AppColors.primary,
+                        ),
+                        label: const Text('Bagikan ke Galeri'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: const BorderSide(color: AppColors.primary),
+                          minimumSize: const Size(double.infinity, 48),
+                          shape: const StadiumBorder(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(

@@ -249,7 +249,10 @@ class HomeScreen extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               Text(
                                 'Pindai Material',
@@ -257,7 +260,6 @@ class HomeScreen extends StatelessWidget {
                                   color: Colors.white,
                                 ),
                               ),
-                              const SizedBox(width: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 6,
@@ -323,13 +325,17 @@ class HomeScreen extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Aksi Cepat',
-              style: AppTypography.headlineSm(color: AppColors.onSurface),
+            Expanded(
+              child: Text(
+                'Aksi Cepat',
+                style: AppTypography.headlineSm(color: AppColors.onSurface),
+              ),
             ),
+            const SizedBox(width: 8),
             GestureDetector(
               onTap: () => navigationViewModel.goToMarketplace(),
               child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     'Lihat semua',
@@ -346,46 +352,49 @@ class HomeScreen extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildActionTile(
-                icon: Icons.auto_awesome,
-                title: 'Analisis',
-                desc: 'Cek jenis & ide daur ulang',
-                onTap: () => navigationViewModel.goToAnalysis(),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _buildActionTile(
+                  icon: Icons.auto_awesome,
+                  title: 'Analisis',
+                  desc: 'Cek jenis & ide daur ulang',
+                  onTap: () => navigationViewModel.goToAnalysis(),
+                ),
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _buildActionTile(
-                icon: Icons.search,
-                title: 'Cari Stok',
-                desc: 'Eksplorasi stok terdekat',
-                onTap: () => navigationViewModel.goToMarketplace(),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildActionTile(
+                  icon: Icons.search,
+                  title: 'Cari Stok',
+                  desc: 'Eksplorasi stok terdekat',
+                  onTap: () => navigationViewModel.goToMarketplace(),
+                ),
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _buildActionTile(
-                icon: Icons.handshake_outlined,
-                title: 'Tawarkan',
-                desc: 'Setor ke mitra pengolah',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Fitur Tambah Penawaran dibuka di Marketplace!',
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildActionTile(
+                  icon: Icons.handshake_outlined,
+                  title: 'Tawarkan',
+                  desc: 'Setor ke mitra pengolah',
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Fitur Tambah Penawaran dibuka di Marketplace!',
+                        ),
+                        behavior: SnackBarBehavior.floating,
+                        duration: Duration(seconds: 2),
                       ),
-                      behavior: SnackBarBehavior.floating,
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                  navigationViewModel.goToMarketplace();
-                },
+                    );
+                    navigationViewModel.goToMarketplace();
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );
@@ -401,7 +410,7 @@ class HomeScreen extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
       child: Container(
-        height: 120,
+        constraints: const BoxConstraints(minHeight: 120),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: AppColors.surfaceContainerLowest,
@@ -416,6 +425,7 @@ class HomeScreen extends StatelessWidget {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Container(
               width: 36,
@@ -430,18 +440,26 @@ class HomeScreen extends StatelessWidget {
                 color: AppColors.onSecondaryContainer,
               ),
             ),
-            const Spacer(),
-            Text(
-              title,
-              style: AppTypography.labelLg(color: AppColors.onSurface),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              desc,
-              style: AppTypography.bodySm(color: AppColors.onSurfaceVariant)
-                  .copyWith(fontSize: 10.5, height: 1.2),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            const SizedBox(height: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: AppTypography.labelLg(color: AppColors.onSurface),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  desc,
+                  style: AppTypography.bodySm(color: AppColors.onSurfaceVariant)
+                      .copyWith(fontSize: 10.5, height: 1.2),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ],
         ),
@@ -456,47 +474,53 @@ class HomeScreen extends StatelessWidget {
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Row(
-              children: [
-                Text(
-                  'Jejak Kontribusi',
-                  style: AppTypography.headlineSm(color: AppColors.onSurface),
-                ),
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: viewModel.impactErrorMessage != null
-                      ? () => viewModel.loadImpactSummary()
-                      : null,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: viewModel.impactErrorMessage != null
-                          ? const Color(0xFFFFEBEE)
-                          : AppColors.surfaceContainer,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      viewModel.isImpactLoading
-                          ? 'Memuat...'
-                          : (viewModel.impactErrorMessage != null
-                              ? 'Coba lagi'
-                              : (viewModel.hasImpactData ? 'Aktual' : 'Data')),
-                      style: AppTypography.labelSm(
+            Expanded(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    'Jejak Kontribusi',
+                    style: AppTypography.headlineSm(color: AppColors.onSurface),
+                  ),
+                  GestureDetector(
+                    onTap: viewModel.impactErrorMessage != null
+                        ? () => viewModel.loadImpactSummary()
+                        : null,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
                         color: viewModel.impactErrorMessage != null
-                            ? Colors.red.shade700
-                            : (viewModel.hasImpactData
-                                ? AppColors.primary
-                                : AppColors.secondary),
-                      ).copyWith(fontWeight: FontWeight.w600),
+                            ? const Color(0xFFFFEBEE)
+                            : AppColors.surfaceContainer,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        viewModel.isImpactLoading
+                            ? 'Memuat...'
+                            : (viewModel.impactErrorMessage != null
+                                ? 'Coba lagi'
+                                : (viewModel.hasImpactData ? 'Aktual' : 'Data')),
+                        style: AppTypography.labelSm(
+                          color: viewModel.impactErrorMessage != null
+                              ? Colors.red.shade700
+                              : (viewModel.hasImpactData
+                                  ? AppColors.primary
+                                  : AppColors.secondary),
+                        ).copyWith(fontWeight: FontWeight.w600),
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
+            const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
@@ -504,6 +528,7 @@ class HomeScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     'Bulan ini',
@@ -663,6 +688,7 @@ class HomeScreen extends StatelessWidget {
 
   /// 5. Pasar Terkini (Marketplace Preview)
   Widget _buildMarketplacePreview(BuildContext context) {
+    final listings = viewModel.recentListings;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -670,24 +696,28 @@ class HomeScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Pasar Terkini',
-                  style: AppTypography.headlineSm(color: AppColors.onSurface),
-                ),
-                Text(
-                  'Material siap pakai di sekitarmu',
-                  style: AppTypography.bodySm(
-                    color: AppColors.onSurfaceVariant,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Pasar Terkini',
+                    style: AppTypography.headlineSm(color: AppColors.onSurface),
                   ),
-                ),
-              ],
+                  Text(
+                    'Material siap pakai di sekitarmu',
+                    style: AppTypography.bodySm(
+                      color: AppColors.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
             ),
+            const SizedBox(width: 12),
             GestureDetector(
               onTap: () => navigationViewModel.goToMarketplace(),
               child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     'Lihat semua',
@@ -711,19 +741,52 @@ class HomeScreen extends StatelessWidget {
               child: CircularProgressIndicator(),
             ),
           )
-        else
-          Row(
-            children: viewModel.recentListings.map((item) {
-              return Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    right: item == viewModel.recentListings.first ? 6 : 0,
-                    left: item == viewModel.recentListings.last ? 6 : 0,
+        else if (listings.isNotEmpty)
+          LayoutBuilder(
+            builder: (context, constraints) {
+              // Use 2 columns on compact phone widths so cards have generous
+              // breathing room at 360dp + 1.3x text scale; expand to 3 columns
+              // only on wider tablets/landscape surfaces.
+              final columns = constraints.maxWidth >= 460 ? 3 : 2;
+              const spacing = 12.0;
+              final rows = <Widget>[];
+
+              for (var start = 0; start < listings.length; start += columns) {
+                final end = (start + columns).clamp(0, listings.length);
+                final rowItems = listings.sublist(start, end);
+                final children = <Widget>[];
+
+                for (var col = 0; col < columns; col++) {
+                  if (col > 0) {
+                    children.add(const SizedBox(width: spacing));
+                  }
+                  if (col < rowItems.length) {
+                    children.add(
+                      Expanded(
+                        child: _buildListingCard(context, rowItems[col]),
+                      ),
+                    );
+                  } else {
+                    children.add(const Expanded(child: SizedBox.shrink()));
+                  }
+                }
+
+                if (start > 0) {
+                  rows.add(const SizedBox(height: spacing));
+                }
+                rows.add(
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: children,
                   ),
-                  child: _buildListingCard(context, item),
-                ),
+                );
+              }
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: rows,
               );
-            }).toList(),
+            },
           ),
       ],
     );
@@ -839,10 +902,15 @@ class HomeScreen extends StatelessWidget {
                   const SizedBox(height: 3),
                   Row(
                     children: [
-                      Text(
-                        '${item.weightKg.toStringAsFixed(0)} kg',
-                        style: AppTypography.bodySm(
-                          color: AppColors.onSurfaceVariant,
+                      Flexible(
+                        flex: 0,
+                        child: Text(
+                          '${item.weightKg.toStringAsFixed(0)} kg',
+                          style: AppTypography.bodySm(
+                            color: AppColors.onSurfaceVariant,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const SizedBox(width: 4),
@@ -890,29 +958,39 @@ class HomeScreen extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      if (item.isFree)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: item.isFree
+                                ? Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.secondaryContainer,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      'Gratis',
+                                      style: AppTypography.labelMd(
+                                        color: AppColors.primary,
+                                      ).copyWith(fontWeight: FontWeight.w700),
+                                    ),
+                                  )
+                                : Text(
+                                    item.formattedPrice,
+                                    style: AppTypography.labelLg(
+                                      color: AppColors.primary,
+                                    ).copyWith(fontWeight: FontWeight.w700),
+                                  ),
                           ),
-                          decoration: BoxDecoration(
-                            color: AppColors.secondaryContainer,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            'Gratis',
-                            style: AppTypography.labelMd(
-                              color: AppColors.primary,
-                            ).copyWith(fontWeight: FontWeight.w700),
-                          ),
-                        )
-                      else
-                        Text(
-                          item.formattedPrice,
-                          style: AppTypography.labelLg(color: AppColors.primary)
-                              .copyWith(fontWeight: FontWeight.w700),
                         ),
+                      ),
+                      const SizedBox(width: 6),
                       Icon(
                         item.isFree ? Icons.volunteer_activism : Icons.eco,
                         size: 18,

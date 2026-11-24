@@ -29,6 +29,10 @@ class ApiConfig {
   // Orders & Transactions (Stage 3)
   static const String orders = '$baseUrl/orders';
 
+  // Gallery ("Galeri Karya")
+  static const String gallery = '$baseUrl/gallery';
+  static const String myGallery = '$baseUrl/me/gallery';
+
   static String materialDetail(int id) => '$baseUrl/materials/$id';
   static String materialMatches(int id) => '$baseUrl/materials/$id/matches';
   static String materialRequestDetail(int id) => '$baseUrl/material-requests/$id';
@@ -43,5 +47,7 @@ class ApiConfig {
   static String orderRefreshPayment(int id) => '$baseUrl/orders/$id/refresh-payment';
   static String orderShip(int id) => '$baseUrl/orders/$id/ship';
   static String orderConfirmDelivery(int id) => '$baseUrl/orders/$id/confirm-delivery';
+  static String galleryDetail(int id) => '$baseUrl/gallery/$id';
+  static String galleryLike(int id) => '$baseUrl/gallery/$id/like';
 }
 
