@@ -75,23 +75,6 @@ void main() async {
       : MockGalleryRepository();
 
   final navigationViewModel = NavigationViewModel();
-  final addressViewModel = AddressViewModel(
-    addressRepository: addressRepository,
-  );
-  final orderViewModel = OrderViewModel(
-    orderRepository: orderRepository,
-  );
-  final galleryViewModel = GalleryViewModel(
-    galleryRepository: galleryRepository,
-  );
-  final authViewModel = AuthViewModel(
-    authRepository: authRepository,
-    onSessionCleared: () {
-      addressViewModel.clearUserData();
-      orderViewModel.clearUserData();
-      galleryViewModel.clearUserData();
-    },
-  );
   final homeViewModel = HomeViewModel(materialRepository: materialRepository);
   final analysisViewModel = AnalysisViewModel(
     analysisRepository: analysisRepository,
@@ -107,6 +90,30 @@ void main() async {
   );
   final matchingViewModel = MatchingViewModel(
     transactionRepository: transactionRepository,
+  );
+  final addressViewModel = AddressViewModel(
+    addressRepository: addressRepository,
+  );
+  final orderViewModel = OrderViewModel(
+    orderRepository: orderRepository,
+  );
+  final galleryViewModel = GalleryViewModel(
+    galleryRepository: galleryRepository,
+  );
+  final authViewModel = AuthViewModel(
+    authRepository: authRepository,
+    onSessionCleared: () {
+      materialRepository.clearUserData();
+      homeViewModel.clearUserData();
+      analysisViewModel.clearUserData();
+      marketplaceViewModel.clearUserData();
+      activityViewModel.clearUserData();
+      materialRequestViewModel.clearUserData();
+      matchingViewModel.clearUserData();
+      addressViewModel.clearUserData();
+      orderViewModel.clearUserData();
+      galleryViewModel.clearUserData();
+    },
   );
 
   runApp(

@@ -6,6 +6,7 @@ import '../../core/constants/app_assets.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/widgets/plasvora_header.dart';
+import '../../models/plastic_analysis.dart';
 import '../../repositories/shipping_repository.dart';
 import '../../viewmodels/analysis_viewmodel.dart';
 import '../../viewmodels/auth_viewmodel.dart';
@@ -410,7 +411,9 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
-              value: widget.viewModel.polymerCategory,
+              value: PlasticCategory.normalizeForApi(
+                widget.viewModel.polymerCategory,
+              ),
               isExpanded: true,
               hint: Text(
                 'Belum tahu (Biarkan AI mendeteksi)',
@@ -420,38 +423,16 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                 Icons.expand_more,
                 color: AppColors.onSurfaceVariant,
               ),
-              items: const [
-                DropdownMenuItem(
+              items: [
+                const DropdownMenuItem<String>(
                   value: null,
                   child: Text('Belum tahu (Biarkan AI mendeteksi)'),
                 ),
-                DropdownMenuItem(
-                  value: '1',
-                  child: Text('PET (1) - Botol Air Mineral, Kemasan Bening'),
-                ),
-                DropdownMenuItem(
-                  value: '2',
-                  child: Text('HDPE (2) - Botol Sampo, Tutup Botol Tebal'),
-                ),
-                DropdownMenuItem(
-                  value: '3',
-                  child: Text('PVC (3) - Pipa, Kabel Selang'),
-                ),
-                DropdownMenuItem(
-                  value: '4',
-                  child: Text('LDPE (4) - Kantong Kresek, Bubble Wrap'),
-                ),
-                DropdownMenuItem(
-                  value: '5',
-                  child: Text('PP (5) - Sedotan, Kotak Makanan Microwave'),
-                ),
-                DropdownMenuItem(
-                  value: '6',
-                  child: Text('PS (6) - Styrofoam, Sendok Plastik Putih'),
-                ),
-                DropdownMenuItem(
-                  value: '7',
-                  child: Text('Lainnya (7) - Campuran Multi-layer / ABS'),
+                ...PlasticCategory.selectableOptions.map(
+                  (option) => DropdownMenuItem<String>(
+                    value: option.apiValue,
+                    child: Text(option.label),
+                  ),
                 ),
               ],
               onChanged: (val) => widget.viewModel.setPolymer(val),

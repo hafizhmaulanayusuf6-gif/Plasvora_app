@@ -81,16 +81,29 @@ class OrderViewModel extends ChangeNotifier {
   /// Versi generasi sesi: dinaikkan pada clearUserData() sehingga respons async
   /// akun lama yang selesai setelah logout tidak pernah bisa menimpa state akun baru.
   int _sessionVersion = 0;
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  void _safeNotifyListeners() {
+    if (!_disposed) {
+      notifyListeners();
+    }
+  }
 
   void markPendingPaymentReturn(int orderId) {
     _pendingPaymentOrderId = orderId;
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   void clearPendingPaymentReturn() {
     if (_pendingPaymentOrderId == null) return;
     _pendingPaymentOrderId = null;
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   void setCurrentOrderPreview(OrderItem order, {bool notify = true}) {
@@ -98,7 +111,7 @@ class OrderViewModel extends ChangeNotifier {
     _currentOrder = order;
     _detailError = null;
     if (notify) {
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -111,7 +124,7 @@ class OrderViewModel extends ChangeNotifier {
     _errorMessage = null;
     _fieldErrors = const {};
     _reconciliationOrderId = null;
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   /// Membersihkan seluruh cache transaksi pengguna saat logout atau sesi 401 dicabut.
@@ -173,7 +186,7 @@ class OrderViewModel extends ChangeNotifier {
     _fieldErrors = const {};
 
     if (hadState) {
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -191,7 +204,7 @@ class OrderViewModel extends ChangeNotifier {
     }
     _isLoadingBuyerList = true;
     _buyerListError = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final result = await orderRepository.getOrders(
@@ -199,7 +212,7 @@ class OrderViewModel extends ChangeNotifier {
         status: _buyerStatusFilter,
         page: nextPage,
       );
-      if (version != _sessionVersion) return;
+      if (version != _sessionVersion || _disposed) return;
 
       _buyerOrders = loadMore
           ? _mergeUniqueOrders(_buyerOrders, result.items)
@@ -207,15 +220,15 @@ class OrderViewModel extends ChangeNotifier {
       _buyerPage = result.currentPage;
       _buyerHasMore = result.hasMore;
     } catch (e) {
-      if (version != _sessionVersion) return;
+      if (version != _sessionVersion || _disposed) return;
       _buyerListError = _extractErrorMessage(
         e,
         fallback: 'Gagal memuat daftar pembelian Anda.',
       );
     } finally {
-      if (version == _sessionVersion) {
+      if (version == _sessionVersion && !_disposed) {
         _isLoadingBuyerList = false;
-        notifyListeners();
+        _safeNotifyListeners();
       }
     }
   }
@@ -234,7 +247,7 @@ class OrderViewModel extends ChangeNotifier {
     }
     _isLoadingSellerList = true;
     _sellerListError = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final result = await orderRepository.getOrders(
@@ -242,7 +255,7 @@ class OrderViewModel extends ChangeNotifier {
         status: _sellerStatusFilter,
         page: nextPage,
       );
-      if (version != _sessionVersion) return;
+      if (version != _sessionVersion || _disposed) return;
 
       _sellerOrders = loadMore
           ? _mergeUniqueOrders(_sellerOrders, result.items)
@@ -250,15 +263,15 @@ class OrderViewModel extends ChangeNotifier {
       _sellerPage = result.currentPage;
       _sellerHasMore = result.hasMore;
     } catch (e) {
-      if (version != _sessionVersion) return;
+      if (version != _sessionVersion || _disposed) return;
       _sellerListError = _extractErrorMessage(
         e,
         fallback: 'Gagal memuat daftar pesanan masuk.',
       );
     } finally {
-      if (version == _sessionVersion) {
+      if (version == _sessionVersion && !_disposed) {
         _isLoadingSellerList = false;
-        notifyListeners();
+        _safeNotifyListeners();
       }
     }
   }
@@ -272,25 +285,25 @@ class OrderViewModel extends ChangeNotifier {
     _selectedOrderId = orderId;
     _isLoadingDetail = true;
     _detailError = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final order = await orderRepository.getOrderDetail(orderId);
-      if (version != _sessionVersion) return null;
+      if (version != _sessionVersion || _disposed) return null;
 
       _syncOrderAcrossState(order);
       return order;
     } catch (e) {
-      if (version != _sessionVersion) return null;
+      if (version != _sessionVersion || _disposed) return null;
       _detailError = _extractErrorMessage(
         e,
         fallback: 'Gagal memuat detail pesanan.',
       );
       return null;
     } finally {
-      if (version == _sessionVersion) {
+      if (version == _sessionVersion && !_disposed) {
         _isLoadingDetail = false;
-        notifyListeners();
+        _safeNotifyListeners();
       }
     }
   }
@@ -310,7 +323,7 @@ class OrderViewModel extends ChangeNotifier {
     _errorMessage = null;
     _fieldErrors = const {};
     _reconciliationOrderId = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final created = await orderRepository.createOrder(
@@ -321,12 +334,12 @@ class OrderViewModel extends ChangeNotifier {
         buyerNote: buyerNote,
         idempotencyKey: idempotencyKey,
       );
-      if (version != _sessionVersion) return null;
+      if (version != _sessionVersion || _disposed) return null;
 
       _syncOrderAcrossState(created, prependBuyer: true);
       return created;
     } catch (e) {
-      if (version != _sessionVersion) return null;
+      if (version != _sessionVersion || _disposed) return null;
       _fieldErrors = _extractFieldErrors(e);
       _errorMessage = _extractErrorMessage(
         e,
@@ -344,9 +357,9 @@ class OrderViewModel extends ChangeNotifier {
       }
       return null;
     } finally {
-      if (version == _sessionVersion) {
+      if (version == _sessionVersion && !_disposed) {
         _isCreatingOrder = false;
-        notifyListeners();
+        _safeNotifyListeners();
       }
     }
   }
@@ -358,11 +371,11 @@ class OrderViewModel extends ChangeNotifier {
     _isCancellingOrder = true;
     _errorMessage = null;
     _fieldErrors = const {};
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final updated = await orderRepository.cancelOrder(orderId, reason: reason);
-      if (version != _sessionVersion) return null;
+      if (version != _sessionVersion || _disposed) return null;
 
       _syncOrderAcrossState(updated);
       if (_pendingPaymentOrderId == orderId) {
@@ -370,7 +383,7 @@ class OrderViewModel extends ChangeNotifier {
       }
       return updated;
     } catch (e) {
-      if (version != _sessionVersion) return null;
+      if (version != _sessionVersion || _disposed) return null;
       _syncOrderFromConflictError(e);
       _fieldErrors = _extractFieldErrors(e);
       _errorMessage = _extractErrorMessage(
@@ -379,9 +392,9 @@ class OrderViewModel extends ChangeNotifier {
       );
       return null;
     } finally {
-      if (version == _sessionVersion) {
+      if (version == _sessionVersion && !_disposed) {
         _isCancellingOrder = false;
-        notifyListeners();
+        _safeNotifyListeners();
       }
     }
   }
@@ -392,16 +405,16 @@ class OrderViewModel extends ChangeNotifier {
     final version = _sessionVersion;
     _isRetryingPayment = true;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final updated = await orderRepository.retryPayment(orderId);
-      if (version != _sessionVersion) return null;
+      if (version != _sessionVersion || _disposed) return null;
 
       _syncOrderAcrossState(updated);
       return updated;
     } catch (e) {
-      if (version != _sessionVersion) return null;
+      if (version != _sessionVersion || _disposed) return null;
       _syncOrderFromConflictError(e);
       _errorMessage = _extractErrorMessage(
         e,
@@ -409,9 +422,9 @@ class OrderViewModel extends ChangeNotifier {
       );
       return null;
     } finally {
-      if (version == _sessionVersion) {
+      if (version == _sessionVersion && !_disposed) {
         _isRetryingPayment = false;
-        notifyListeners();
+        _safeNotifyListeners();
       }
     }
   }
@@ -422,11 +435,11 @@ class OrderViewModel extends ChangeNotifier {
     final version = _sessionVersion;
     _isRefreshingPayment = true;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final result = await orderRepository.refreshPaymentStatus(orderId);
-      if (version != _sessionVersion) return null;
+      if (version != _sessionVersion || _disposed) return null;
 
       _syncOrderAcrossState(result.order);
       if (_pendingPaymentOrderId == orderId && !result.order.isPendingPayment) {
@@ -434,16 +447,16 @@ class OrderViewModel extends ChangeNotifier {
       }
       return result;
     } catch (e) {
-      if (version != _sessionVersion) return null;
+      if (version != _sessionVersion || _disposed) return null;
       _errorMessage = _extractErrorMessage(
         e,
         fallback: 'Gagal memeriksa status pembayaran dari server.',
       );
       return null;
     } finally {
-      if (version == _sessionVersion) {
+      if (version == _sessionVersion && !_disposed) {
         _isRefreshingPayment = false;
-        notifyListeners();
+        _safeNotifyListeners();
       }
     }
   }
@@ -459,7 +472,7 @@ class OrderViewModel extends ChangeNotifier {
     _isSubmittingShipment = true;
     _errorMessage = null;
     _fieldErrors = const {};
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final updated = await orderRepository.shipOrder(
@@ -467,12 +480,12 @@ class OrderViewModel extends ChangeNotifier {
         trackingNumber: trackingNumber,
         shipmentNotes: shipmentNotes,
       );
-      if (version != _sessionVersion) return null;
+      if (version != _sessionVersion || _disposed) return null;
 
       _syncOrderAcrossState(updated);
       return updated;
     } catch (e) {
-      if (version != _sessionVersion) return null;
+      if (version != _sessionVersion || _disposed) return null;
       _fieldErrors = _extractFieldErrors(e);
       _errorMessage = _extractErrorMessage(
         e,
@@ -480,9 +493,9 @@ class OrderViewModel extends ChangeNotifier {
       );
       return null;
     } finally {
-      if (version == _sessionVersion) {
+      if (version == _sessionVersion && !_disposed) {
         _isSubmittingShipment = false;
-        notifyListeners();
+        _safeNotifyListeners();
       }
     }
   }
@@ -493,25 +506,25 @@ class OrderViewModel extends ChangeNotifier {
     final version = _sessionVersion;
     _isConfirmingDelivery = true;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final updated = await orderRepository.confirmDelivery(orderId);
-      if (version != _sessionVersion) return null;
+      if (version != _sessionVersion || _disposed) return null;
 
       _syncOrderAcrossState(updated);
       return updated;
     } catch (e) {
-      if (version != _sessionVersion) return null;
+      if (version != _sessionVersion || _disposed) return null;
       _errorMessage = _extractErrorMessage(
         e,
         fallback: 'Gagal mengonfirmasi penerimaan pesanan.',
       );
       return null;
     } finally {
-      if (version == _sessionVersion) {
+      if (version == _sessionVersion && !_disposed) {
         _isConfirmingDelivery = false;
-        notifyListeners();
+        _safeNotifyListeners();
       }
     }
   }

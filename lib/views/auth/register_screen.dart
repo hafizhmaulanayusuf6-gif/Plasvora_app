@@ -42,6 +42,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _handleRegister() async {
+    if (widget.authViewModel.isLoading) return;
     if (!_formKey.currentState!.validate()) return;
 
     if (!_agreeTerms) {
@@ -77,17 +78,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
       } else if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop(true);
       }
+    } else if (widget.authViewModel.state == AuthState.error &&
+        Navigator.of(context).canPop()) {
+      // Genuine 403 Forbidden: reveal root PlasvoraApp's restricted-access screen
+      Navigator.of(context).pop();
     } else {
       final msg = widget.authViewModel.errorMessage ??
           'Registrasi gagal. Periksa kembali data pendaftaran Anda.';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(msg),
-          backgroundColor: Colors.red.shade700,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
-        ),
-      );
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+          ),
+        );
     }
   }
 
@@ -381,7 +388,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             controller: _confirmPasswordController,
             obscureText: _obscureConfirmPassword,
             textInputAction: TextInputAction.done,
-            onFieldSubmitted: (_) => _handleRegister(),
+            onFieldSubmitted: (_) => isLoading ? null : _handleRegister(),
             decoration: _inputDecoration(
               hint: 'Ulangi kata sandi',
               prefixIcon: Icons.lock_reset,

@@ -134,6 +134,9 @@ class FakeMaterialRepository implements MaterialRepository {
   Future<void> toggleFavorite(int id) async {}
 
   @override
+  void clearUserData() {}
+
+  @override
   Future<ImpactSummary> getImpactSummary() async {
     return ImpactSummary(
       listedCount: 1,

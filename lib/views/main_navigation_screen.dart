@@ -92,6 +92,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 shippingRepository: widget.shippingRepository,
                 orderViewModel: widget.orderViewModel,
               ),
+              GalleryScreen(
+                viewModel: galleryVm,
+                navigationViewModel: widget.navigationViewModel,
+                authViewModel: widget.authViewModel,
+              ),
               AnalysisScreen(
                 viewModel: widget.analysisViewModel,
                 navigationViewModel: widget.navigationViewModel,
@@ -109,11 +114,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 addressViewModel: widget.addressViewModel,
                 shippingRepository: widget.shippingRepository,
                 orderViewModel: widget.orderViewModel,
-              ),
-              GalleryScreen(
-                viewModel: galleryVm,
-                navigationViewModel: widget.navigationViewModel,
-                authViewModel: widget.authViewModel,
               ),
               ProfileScreen(
                 authViewModel: widget.authViewModel,

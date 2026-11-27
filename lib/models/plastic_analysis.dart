@@ -1,3 +1,71 @@
+/// Option metadata pairing a canonical API category value with its UI label.
+class PlasticCategoryOption {
+  final String apiValue;
+  final String label;
+
+  const PlasticCategoryOption({
+    required this.apiValue,
+    required this.label,
+  });
+}
+
+/// Canonical plastic category contract shared with Laravel (`AnalysisHistory::CATEGORIES`).
+class PlasticCategory {
+  static const String pet = 'PET';
+  static const String hdpe = 'HDPE';
+  static const String pp = 'PP';
+  static const String ldpe = 'LDPE';
+  static const String mixed = 'MIXED';
+  static const String other = 'OTHER';
+
+  static const List<String> supportedApiValues = [
+    pet,
+    hdpe,
+    pp,
+    ldpe,
+    other,
+    mixed,
+  ];
+
+  static const List<PlasticCategoryOption> selectableOptions = [
+    PlasticCategoryOption(
+      apiValue: pet,
+      label: 'PET (#1) - Botol Air Mineral, Kemasan Bening',
+    ),
+    PlasticCategoryOption(
+      apiValue: hdpe,
+      label: 'HDPE (#2) - Botol Sampo, Tutup Botol Tebal',
+    ),
+    PlasticCategoryOption(
+      apiValue: ldpe,
+      label: 'LDPE (#4) - Kantong Kresek, Bubble Wrap',
+    ),
+    PlasticCategoryOption(
+      apiValue: pp,
+      label: 'PP (#5) - Sedotan, Kotak Makanan Microwave',
+    ),
+    PlasticCategoryOption(
+      apiValue: mixed,
+      label: 'Campuran (MIXED) - Multi-komponen / Campuran Plastik',
+    ),
+    PlasticCategoryOption(
+      apiValue: other,
+      label: 'Lainnya (OTHER) - PVC (#3), PS (#6), ABS / Multi-layer (#7)',
+    ),
+  ];
+
+  static bool isSupported(String? value) => normalizeForApi(value) != null;
+
+  /// Returns a canonical API value (`PET`, `HDPE`, `PP`, `LDPE`, `OTHER`, `MIXED`)
+  /// or `null` when unselected or unsupported (never emits numeric resin codes).
+  static String? normalizeForApi(String? raw) {
+    if (raw == null) return null;
+    final normalized = raw.trim().toUpperCase();
+    if (normalized.isEmpty) return null;
+    return supportedApiValues.contains(normalized) ? normalized : null;
+  }
+}
+
 /// Model representasi komponen fisik dalam objek material (Multi-Component)
 class MaterialComponent {
   final String id;

@@ -232,10 +232,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // 5 tab utama di AppBottomNav: Beranda, Analisis, Marketplace, Galeri, Profil
+      // 5 tab utama di AppBottomNav: Beranda, Galeri, Analisis, Marketplace, Profil
       final bottomNav = find.byType(AppBottomNav);
       expect(bottomNav, findsOneWidget);
       expect(find.descendant(of: bottomNav, matching: find.text('Beranda')), findsOneWidget);
+      expect(find.descendant(of: bottomNav, matching: find.byKey(AppBottomNav.analysisBadgeKey)), findsOneWidget);
       expect(find.descendant(of: bottomNav, matching: find.text('Analisis')), findsOneWidget);
       expect(find.descendant(of: bottomNav, matching: find.text('Marketplace')), findsOneWidget);
       expect(find.descendant(of: bottomNav, matching: find.text('Galeri')), findsOneWidget);

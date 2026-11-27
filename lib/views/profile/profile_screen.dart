@@ -102,6 +102,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     widget.addressViewModel?.clearUserData();
     widget.orderViewModel?.clearUserData();
     widget.galleryViewModel?.clearUserData();
+    widget.activityViewModel?.clearUserData();
+    widget.marketplaceViewModel?.clearUserData();
 
     try {
       await authVm.logout();

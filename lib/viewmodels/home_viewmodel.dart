@@ -28,6 +28,46 @@ class HomeViewModel extends ChangeNotifier {
   String? _impactErrorMessage;
   String? get impactErrorMessage => _impactErrorMessage;
 
+  int _sessionVersion = 0;
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  void _safeNotifyListeners() {
+    if (!_disposed) {
+      notifyListeners();
+    }
+  }
+
+  void clearUserData() {
+    _sessionVersion++;
+    final hadFavorite = _recentListings.any((item) => item.isFavorited);
+    final hadState =
+        hadFavorite ||
+        _isLoading ||
+        _isImpactLoading ||
+        _errorMessage != null ||
+        _impactErrorMessage != null;
+
+    if (hadFavorite) {
+      _recentListings = _recentListings
+          .map((item) => item.isFavorited ? item.copyWith(isFavorited: false) : item)
+          .toList();
+    }
+    _isLoading = false;
+    _isImpactLoading = false;
+    _errorMessage = null;
+    _impactErrorMessage = null;
+
+    if (hadState) {
+      _safeNotifyListeners();
+    }
+  }
+
   bool get hasImpactData => _impactSummary != null;
 
   // Real data getters dari backend (tanpa angka palsu fallback!)
@@ -37,47 +77,61 @@ class HomeViewModel extends ChangeNotifier {
   double? get processedKg => _impactSummary?.confirmedWeightKg;
 
   Future<void> loadHomeData() async {
+    final version = _sessionVersion;
     _isLoading = true;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final items = await materialRepository.getMaterials();
+      if (version != _sessionVersion || _disposed) return;
       _recentListings = items.take(3).toList();
     } catch (e) {
+      if (version != _sessionVersion || _disposed) return;
       _errorMessage = e.toString().replaceFirst('ApiException: ', '');
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (version == _sessionVersion && !_disposed) {
+        _isLoading = false;
+        _safeNotifyListeners();
+      }
     }
 
+    if (version != _sessionVersion || _disposed) return;
     // Ambil impact summary secara terpisah agar kegagalannya tidak membatalkan recent listings
     await loadImpactSummary();
   }
 
   Future<void> loadImpactSummary() async {
+    final version = _sessionVersion;
     _isImpactLoading = true;
     _impactErrorMessage = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
-      _impactSummary = await materialRepository.getImpactSummary();
+      final summary = await materialRepository.getImpactSummary();
+      if (version != _sessionVersion || _disposed) return;
+      _impactSummary = summary;
     } catch (e) {
+      if (version != _sessionVersion || _disposed) return;
       _impactErrorMessage = e.toString().replaceFirst('ApiException: ', '');
       _impactSummary = null;
     } finally {
-      _isImpactLoading = false;
-      notifyListeners();
+      if (version == _sessionVersion && !_disposed) {
+        _isImpactLoading = false;
+        _safeNotifyListeners();
+      }
     }
   }
 
   Future<void> toggleFavorite(int id) async {
+    final version = _sessionVersion;
     await materialRepository.toggleFavorite(id);
+    if (version != _sessionVersion || _disposed) return;
     final index = _recentListings.indexWhere((element) => element.id == id);
     if (index != -1) {
       final item = _recentListings[index];
       _recentListings[index] = item.copyWith(isFavorited: !item.isFavorited);
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 }

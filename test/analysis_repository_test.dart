@@ -1,12 +1,17 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:plasvora/core/network/api_client.dart';
+import 'package:plasvora/core/theme/app_theme.dart';
 import 'package:plasvora/models/plastic_analysis.dart';
 import 'package:plasvora/repositories/analysis_repository.dart';
+import 'package:plasvora/viewmodels/analysis_viewmodel.dart';
+import 'package:plasvora/viewmodels/navigation_viewmodel.dart';
+import 'package:plasvora/views/analysis/analysis_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Test helper: minimal valid JPEG bytes (1x1 pixel)
@@ -300,4 +305,215 @@ void main() {
       expect(result.materialTitle, contains('Tutup Botol'));
     });
   });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 5. BUG-02 — Plastic category contract (Flutter -> Laravel canonical values)
+  // ───────────────────────────────────────────────────────────────────────────
+  group('BUG-02 — PlasticCategory contract & payload verification', () {
+    test('every selectable option maps to canonical Laravel enum and never numeric codes', () {
+      const expectedBackendAllowlist = {
+        'PET',
+        'HDPE',
+        'PP',
+        'LDPE',
+        'OTHER',
+        'MIXED',
+      };
+
+      final selectableValues = PlasticCategory.selectableOptions
+          .map((o) => o.apiValue)
+          .toSet();
+
+      expect(selectableValues, equals(expectedBackendAllowlist));
+      for (final option in PlasticCategory.selectableOptions) {
+        expect(RegExp(r'^[1-7]$').hasMatch(option.apiValue), isFalse);
+      }
+
+      // Normalization behavior
+      expect(PlasticCategory.normalizeForApi(' pet '), equals('PET'));
+      expect(PlasticCategory.normalizeForApi('mixed'), equals('MIXED'));
+      expect(PlasticCategory.normalizeForApi(null), isNull);
+      expect(PlasticCategory.normalizeForApi(''), isNull);
+      for (final legacyNumeric in ['1', '2', '3', '4', '5', '6', '7']) {
+        expect(PlasticCategory.normalizeForApi(legacyNumeric), isNull);
+      }
+      expect(PlasticCategory.normalizeForApi('INVALID'), isNull);
+    });
+
+    test('JSON and multipart requests send exact canonical declared_category and omit null/unsupported values', () async {
+      final capturedJsonBodies = <Map<String, dynamic>>[];
+      String? capturedMultipartBody;
+
+      final mockHttp = MockClient((request) async {
+        final contentType = request.headers['content-type'] ?? '';
+        String echoedCategory = 'PET';
+
+        if (contentType.contains('multipart/form-data')) {
+          final decodedMultipart = utf8.decode(
+            request.bodyBytes,
+            allowMalformed: true,
+          );
+          capturedMultipartBody = decodedMultipart;
+          final match = RegExp(
+            r'name="declared_category"\r?\n\r?\n([A-Z]+)',
+          ).firstMatch(decodedMultipart);
+          if (match != null) {
+            echoedCategory = match.group(1)!;
+          }
+        } else {
+          final decoded = jsonDecode(request.body) as Map<String, dynamic>;
+          capturedJsonBodies.add(decoded);
+          echoedCategory =
+              decoded['declared_category']?.toString() ?? 'OTHER';
+        }
+
+        final bodyBytes = utf8.encode(jsonEncode({
+          'success': true,
+          'data': {
+            'id': '99',
+            'declared_category': echoedCategory,
+            'estimated_category': echoedCategory,
+            'is_demo_result': !contentType.contains('multipart/form-data'),
+            'recommendations': [],
+          },
+        }));
+        return http.Response.bytes(
+          bodyBytes,
+          201,
+          headers: {'Content-Type': 'application/json; charset=utf-8'},
+        );
+      });
+
+      final tokenStorage = InMemoryAuthTokenStorage();
+      await tokenStorage.saveToken('test_token');
+      final repo = ApiAnalysisRepository(
+        apiClient: ApiClient(client: mockHttp, tokenStorage: tokenStorage),
+      );
+
+      // Every selectable option produces exact canonical value in JSON payload
+      for (final option in PlasticCategory.selectableOptions) {
+        final result = await repo.analyzePlastic(
+          PlasticAnalysisInput(
+            imagePath: null,
+            polymerCategory: option.apiValue,
+            weightKg: 1.5,
+            condition: 'clean',
+          ),
+        );
+        expect(capturedJsonBodies.last['declared_category'], option.apiValue);
+        expect(result.polymerCategory, option.apiValue);
+      }
+
+      // Null and unsupported/numeric values omit declared_category completely
+      for (final badValue in [null, '', '1', '3', '7', 'UNKNOWN']) {
+        await repo.analyzePlastic(
+          PlasticAnalysisInput(
+            imagePath: null,
+            polymerCategory: badValue,
+            weightKg: 1.0,
+            condition: 'clean',
+          ),
+        );
+        expect(
+          capturedJsonBodies.last.containsKey('declared_category'),
+          isFalse,
+          reason: 'Expected "$badValue" to omit declared_category',
+        );
+      }
+
+      // Multipart upload sends canonical declared_category
+      final tmpFile = _createTempJpgFile();
+      try {
+        await repo.analyzePlastic(
+          PlasticAnalysisInput(
+            imagePath: tmpFile.path,
+            isCameraOrGallery: true,
+            polymerCategory: PlasticCategory.mixed,
+            weightKg: 2.0,
+            condition: 'clean',
+          ),
+        );
+        expect(capturedMultipartBody, contains('name="declared_category"'));
+        expect(capturedMultipartBody, contains('MIXED'));
+      } finally {
+        if (tmpFile.existsSync()) tmpFile.deleteSync();
+      }
+    });
+
+    testWidgets(
+      'AnalysisScreen dropdown stores canonical API values (never numeric 1..7) and handles unsupported ViewModel state safely',
+      (tester) async {
+        final capturedInputs = <PlasticAnalysisInput>[];
+        final fakeRepo = _CapturingAnalysisRepository(capturedInputs);
+        final vm = AnalysisViewModel(analysisRepository: fakeRepo);
+
+        // Unsupported/numeric value passed programmatically is normalized to null
+        vm.setPolymer('3');
+        expect(vm.polymerCategory, isNull);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: AnalysisScreen(
+              viewModel: vm,
+              navigationViewModel: NavigationViewModel(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final dropdownFinder = find.byType(DropdownButton<String>);
+        expect(dropdownFinder, findsOneWidget);
+
+        // Verify dropdown items expose all 6 canonical backend categories + null
+        final dropdown = tester.widget<DropdownButton<String>>(dropdownFinder);
+        final itemValues = dropdown.items!.map((i) => i.value).toList();
+        expect(
+          itemValues,
+          equals([null, 'PET', 'HDPE', 'LDPE', 'PP', 'MIXED', 'OTHER']),
+        );
+
+        // Select 'PP' via UI dropdown interaction
+        await tester.ensureVisible(dropdownFinder);
+        await tester.tap(dropdownFinder);
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.text('PP (#5) - Sedotan, Kotak Makanan Microwave').last,
+        );
+        await tester.pumpAndSettle();
+
+        expect(vm.polymerCategory, equals('PP'));
+
+        // Submit analysis and verify canonical category reaches repository
+        final result = await vm.submitAnalysis();
+        expect(result, isNotNull);
+        expect(capturedInputs.single.polymerCategory, equals('PP'));
+      },
+    );
+  });
+}
+
+class _CapturingAnalysisRepository implements AnalysisRepository {
+  final List<PlasticAnalysisInput> captured;
+
+  _CapturingAnalysisRepository(this.captured);
+
+  @override
+  Future<PlasticAnalysisResult> analyzePlastic(
+    PlasticAnalysisInput input,
+  ) async {
+    captured.add(input);
+    return PlasticAnalysisResult(
+      id: '1',
+      localAsset: 'assets/images/hasil_analisis_caps.png',
+      materialTitle: 'Material ${input.polymerCategory ?? "OTHER"}',
+      polymerCategory: input.polymerCategory ?? 'OTHER',
+      polymerCode: 'Tipe #5',
+      meltingPoint: '160° - 170° C',
+      avoidedEmission: '~1.7 kg CO₂/kg',
+      qualitativeNote: 'Test result',
+      ideas: const [],
+      isSimulated: true,
+    );
+  }
 }
