@@ -35,6 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
+    if (widget.authViewModel.isLoading) return;
     if (!_formKey.currentState!.validate()) return;
 
     final email = _emailController.text.trim();
@@ -50,24 +51,25 @@ class _LoginScreenState extends State<LoginScreen> {
       } else if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop(true);
       }
-    } else {
+    } else if (widget.authViewModel.state != AuthState.error ||
+        Navigator.of(context).canPop()) {
       final msg = widget.authViewModel.errorMessage ??
           'Login gagal. Periksa kembali email dan kata sandi Anda.';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(msg),
-          backgroundColor: Colors.red.shade700,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
-        ),
-      );
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+          ),
+        );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isLoading = widget.authViewModel.isLoading;
-
     return Scaffold(
       backgroundColor: AppColors.surface,
       body: SafeArea(
@@ -90,7 +92,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 28),
 
                     // Login Card Container
-                    _buildLoginCard(isLoading),
+                    ListenableBuilder(
+                      listenable: widget.authViewModel,
+                      builder: (context, _) => _buildLoginCard(
+                        widget.authViewModel.isLoading,
+                      ),
+                    ),
                     const SizedBox(height: 32),
 
                     // Bottom Register Redirection
@@ -250,7 +257,7 @@ class _LoginScreenState extends State<LoginScreen> {
             controller: _passwordController,
             obscureText: _obscurePassword,
             textInputAction: TextInputAction.done,
-            onFieldSubmitted: (_) => _handleLogin(),
+            onFieldSubmitted: (_) => isLoading ? null : _handleLogin(),
             decoration: InputDecoration(
               hintText: 'Masukkan kata sandi',
               hintStyle: AppTypography.bodyMd(color: AppColors.outline),

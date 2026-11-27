@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../core/network/api_client.dart';
 import '../models/user_profile.dart';
@@ -28,7 +29,9 @@ class AuthViewModel extends ChangeNotifier {
   bool get isUpdatingProfile => _isUpdatingProfile;
 
   bool _isRestoring = false;
+  bool _isSubmitting = false;
   bool _isLoggingOut = false;
+  bool _disposed = false;
   Future<void>? _activeRestoreFuture;
 
   AuthViewModel({
@@ -36,6 +39,18 @@ class AuthViewModel extends ChangeNotifier {
     this.onSessionCleared,
   }) {
     checkAuthSession();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  void _safeNotifyListeners() {
+    if (!_disposed) {
+      notifyListeners();
+    }
   }
 
   /// Memulihkan dan memvalidasi sesi autentikasi dengan proteksi race condition.
@@ -48,13 +63,14 @@ class AuthViewModel extends ChangeNotifier {
     _isRestoring = true;
     _state = AuthState.loading;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     final completer = Completer<void>();
     _activeRestoreFuture = completer.future;
 
     try {
       final user = await authRepository.getCurrentUser();
+      if (_disposed) return;
       if (user != null) {
         _currentUser = user;
         _state = AuthState.authenticated;
@@ -64,6 +80,7 @@ class AuthViewModel extends ChangeNotifier {
         onSessionCleared?.call();
       }
     } on ApiException catch (e) {
+      if (_disposed) return;
       if (e.statusCode == 401) {
         // HTTP 401 Unauthorized: Sesi tidak sah / token dicabut
         _currentUser = null;
@@ -82,35 +99,49 @@ class AuthViewModel extends ChangeNotifier {
         _state = AuthState.connectionError;
       }
     } catch (e) {
+      if (_disposed) return;
       // Socket exception, network timeout: token tetap aman
       _errorMessage = e.toString().replaceFirst('ApiException: ', '');
       _state = AuthState.connectionError;
     } finally {
       _isRestoring = false;
       _activeRestoreFuture = null;
-      completer.complete();
-      notifyListeners();
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
+      _safeNotifyListeners();
     }
   }
 
   Future<void> retryCheckAuthSession() => checkAuthSession();
 
   Future<bool> login(String email, String password) async {
+    if (_isSubmitting) return false;
+
+    _isSubmitting = true;
     _state = AuthState.loading;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final user = await authRepository.login(email: email, password: password);
+      if (_disposed) return false;
       _currentUser = user;
       _state = AuthState.authenticated;
-      notifyListeners();
+      _safeNotifyListeners();
       return true;
-    } catch (e) {
-      _errorMessage = e.toString().replaceFirst('ApiException: ', '');
-      _state = AuthState.error;
-      notifyListeners();
+    } on ApiException catch (e) {
+      if (_disposed) return false;
+      _applyAuthOperationFailure(e);
       return false;
+    } catch (e) {
+      if (_disposed) return false;
+      _errorMessage = _formatUnexpectedAuthError(e);
+      _state = AuthState.unauthenticated;
+      _safeNotifyListeners();
+      return false;
+    } finally {
+      _isSubmitting = false;
     }
   }
 
@@ -121,9 +152,12 @@ class AuthViewModel extends ChangeNotifier {
     required String passwordConfirmation,
     String? phone,
   }) async {
+    if (_isSubmitting) return false;
+
+    _isSubmitting = true;
     _state = AuthState.loading;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final user = await authRepository.register(
@@ -133,16 +167,70 @@ class AuthViewModel extends ChangeNotifier {
         passwordConfirmation: passwordConfirmation,
         phone: phone,
       );
+      if (_disposed) return false;
       _currentUser = user;
       _state = AuthState.authenticated;
-      notifyListeners();
+      _safeNotifyListeners();
       return true;
-    } catch (e) {
-      _errorMessage = e.toString().replaceFirst('ApiException: ', '');
-      _state = AuthState.error;
-      notifyListeners();
+    } on ApiException catch (e) {
+      if (_disposed) return false;
+      _applyAuthOperationFailure(e);
       return false;
+    } catch (e) {
+      if (_disposed) return false;
+      _errorMessage = _formatUnexpectedAuthError(e);
+      _state = AuthState.unauthenticated;
+      _safeNotifyListeners();
+      return false;
+    } finally {
+      _isSubmitting = false;
     }
+  }
+
+  /// Keep AuthState.error strictly for genuine HTTP 403 Forbidden;
+  /// credential, validation, server, and network failures stay unauthenticated
+  /// so LoginScreen / RegisterScreen remain mounted for retry.
+  void _applyAuthOperationFailure(ApiException e) {
+    if (e.statusCode == 403) {
+      _errorMessage = e.message.isNotEmpty
+          ? e.message
+          : 'Akses ke akun Anda dibatasi oleh server (403 Forbidden).';
+      _state = AuthState.error;
+    } else {
+      _errorMessage = _extractApiErrorMessage(e);
+      _state = AuthState.unauthenticated;
+    }
+    _safeNotifyListeners();
+  }
+
+  String _extractApiErrorMessage(ApiException e) {
+    final errors = e.errors;
+    if (errors != null) {
+      for (final value in errors.values) {
+        if (value is List && value.isNotEmpty) {
+          final first = value.first.toString().trim();
+          if (first.isNotEmpty) return first;
+        } else if (value is String && value.trim().isNotEmpty) {
+          return value.trim();
+        }
+      }
+    }
+    return e.message.isNotEmpty
+        ? e.message
+        : 'Terjadi kesalahan saat memproses autentikasi.';
+  }
+
+  String _formatUnexpectedAuthError(Object e) {
+    if (e is SocketException) {
+      return 'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.';
+    }
+    if (e is TimeoutException) {
+      return 'Koneksi ke server habis waktu. Silakan coba lagi.';
+    }
+    return e
+        .toString()
+        .replaceFirst('ApiException: ', '')
+        .replaceFirst('Exception: ', '');
   }
 
   Future<bool> updateProfile({
@@ -154,7 +242,7 @@ class AuthViewModel extends ChangeNotifier {
 
     _isUpdatingProfile = true;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final updatedUser = await authRepository.updateProfile(
@@ -162,9 +250,11 @@ class AuthViewModel extends ChangeNotifier {
         phone: phone,
         whatsappPublic: whatsappPublic,
       );
+      if (_disposed) return false;
       _currentUser = updatedUser;
       return true;
     } on ApiException catch (e) {
+      if (_disposed) return false;
       final phoneErrors = e.errors?['phone'];
       final privacyErrors = e.errors?['whatsapp_public'];
       if (phoneErrors is List && phoneErrors.isNotEmpty) {
@@ -176,11 +266,12 @@ class AuthViewModel extends ChangeNotifier {
       }
       return false;
     } catch (e) {
+      if (_disposed) return false;
       _errorMessage = e.toString().replaceFirst('ApiException: ', '');
       return false;
     } finally {
       _isUpdatingProfile = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -189,7 +280,7 @@ class AuthViewModel extends ChangeNotifier {
 
     _isLoggingOut = true;
     _state = AuthState.loading;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       onSessionCleared?.call();
@@ -200,7 +291,7 @@ class AuthViewModel extends ChangeNotifier {
       _errorMessage = null;
       _state = AuthState.unauthenticated;
       _isLoggingOut = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 }

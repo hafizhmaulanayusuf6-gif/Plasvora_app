@@ -14,9 +14,12 @@ class ApiAnalysisRepository implements AnalysisRepository {
 
   @override
   Future<PlasticAnalysisResult> analyzePlastic(PlasticAnalysisInput input) async {
+    final normalizedCategory = PlasticCategory.normalizeForApi(
+      input.polymerCategory,
+    );
     final fields = <String, String>{};
-    if (input.polymerCategory != null && input.polymerCategory!.isNotEmpty) {
-      fields['declared_category'] = input.polymerCategory!;
+    if (normalizedCategory != null) {
+      fields['declared_category'] = normalizedCategory;
     }
     if (input.weightKg != null && input.weightKg! > 0) {
       fields['weight_kg'] = input.weightKg.toString();
@@ -43,8 +46,8 @@ class ApiAnalysisRepository implements AnalysisRepository {
         'condition': input.condition,
         'weight_kg': input.weightKg ?? 1.0,
       };
-      if (input.polymerCategory != null && input.polymerCategory!.isNotEmpty) {
-        bodyMap['declared_category'] = input.polymerCategory;
+      if (normalizedCategory != null) {
+        bodyMap['declared_category'] = normalizedCategory;
       }
       if (input.notes != null && input.notes!.isNotEmpty) {
         bodyMap['notes'] = input.notes;
@@ -62,7 +65,7 @@ class ApiAnalysisRepository implements AnalysisRepository {
       return mapBackendDataToResult(
         data,
         localImagePath: input.imagePath,
-        fallbackCategory: input.polymerCategory,
+        fallbackCategory: normalizedCategory,
       );
     }
 
@@ -278,32 +281,39 @@ class ApiAnalysisRepository implements AnalysisRepository {
     String emission = '~2.1 kg CO₂/kg';
 
     switch (category) {
-      case 'PET':
+      case PlasticCategory.pet:
         title = 'Botol Plastik PET Bening';
         polymerCode = 'Tipe #1';
         meltingPoint = '250° - 260° C';
         emission = '~2.1 kg CO₂/kg';
         break;
-      case 'HDPE':
+      case PlasticCategory.hdpe:
         title = 'Tutup Botol & Jerigen HDPE';
         polymerCode = 'Tipe #2';
         meltingPoint = '130° - 145° C';
         emission = '~1.8 kg CO₂/kg';
         break;
-      case 'PP':
+      case PlasticCategory.pp:
         title = 'Wadah Kemasan Makanan PP';
         polymerCode = 'Tipe #5';
         meltingPoint = '160° - 170° C';
         emission = '~1.7 kg CO₂/kg';
         break;
-      case 'LDPE':
+      case PlasticCategory.ldpe:
         title = 'Plastik Film LDPE';
         polymerCode = 'Tipe #4';
         meltingPoint = '105° - 115° C';
         emission = '~1.5 kg CO₂/kg';
         break;
-      default:
+      case PlasticCategory.mixed:
         title = 'Campuran Sampah Plastik';
+        polymerCode = 'Campuran (MIXED)';
+        meltingPoint = '120° - 250° C';
+        emission = '~1.6 kg CO₂/kg';
+        break;
+      case PlasticCategory.other:
+      default:
+        title = 'Material Plastik Lainnya';
         polymerCode = 'Tipe #7 (Other)';
         meltingPoint = '120° - 250° C';
         emission = '~1.6 kg CO₂/kg';
@@ -337,39 +347,50 @@ class MockAnalysisRepository implements AnalysisRepository {
     await Future.delayed(const Duration(milliseconds: 1200));
 
     // Jika pengguna memilih kategori polimer secara eksplisit (misal test input deklaratif)
-    if (input.polymerCategory != null && input.polymerCategory!.isNotEmpty) {
-      String title = 'Material Plastik ${input.polymerCategory}';
-      String code = 'Tipe #${input.polymerCategory}';
+    final normalizedMockCategory = PlasticCategory.normalizeForApi(
+      input.polymerCategory,
+    );
+    if (normalizedMockCategory != null) {
+      String title = 'Material Plastik $normalizedMockCategory';
+      String code = 'Tipe $normalizedMockCategory';
       String melting = '130° - 260° C';
       String emission = '~1.8 kg CO₂/kg (Estimasi)';
-      switch (input.polymerCategory) {
-        case 'PET':
-        case '1':
+      switch (normalizedMockCategory) {
+        case PlasticCategory.pet:
           title = 'Botol Plastik PET Bening';
           code = 'Tipe #1';
           melting = '250° - 260° C';
           emission = '~2.1 kg CO₂/kg (Estimasi)';
           break;
-        case 'HDPE':
-        case '2':
+        case PlasticCategory.hdpe:
           title = 'Tutup Botol & Jerigen HDPE';
           code = 'Tipe #2';
           melting = '130° - 145° C';
           emission = '~1.8 kg CO₂/kg (Estimasi)';
           break;
-        case 'PP':
-        case '5':
+        case PlasticCategory.pp:
           title = 'Wadah Kemasan PP';
           code = 'Tipe #5';
           melting = '160° - 170° C';
           emission = '~1.7 kg CO₂/kg (Estimasi)';
           break;
-        case 'LDPE':
-        case '4':
+        case PlasticCategory.ldpe:
           title = 'Plastik Film LDPE';
           code = 'Tipe #4';
           melting = '105° - 115° C';
           emission = '~1.5 kg CO₂/kg (Estimasi)';
+          break;
+        case PlasticCategory.mixed:
+          title = 'Campuran Sampah Plastik';
+          code = 'Campuran (MIXED)';
+          melting = '120° - 250° C';
+          emission = '~1.6 kg CO₂/kg (Estimasi)';
+          break;
+        case PlasticCategory.other:
+          title = 'Material Plastik Lainnya';
+          code = 'Tipe #7 (Other)';
+          melting = '120° - 250° C';
+          emission = '~1.6 kg CO₂/kg (Estimasi)';
           break;
       }
       return PlasticAnalysisResult(
@@ -377,13 +398,14 @@ class MockAnalysisRepository implements AnalysisRepository {
         imagePath: input.imagePath,
         localAsset: AppAssets.hasilAnalisisCaps,
         objectName: title,
-        objectDescription: 'Material plastik kategori ${input.polymerCategory}.',
-        identificationSummary: 'Material didefinisikan sebagai ${input.polymerCategory}.',
+        objectDescription: 'Material plastik kategori $normalizedMockCategory.',
+        identificationSummary:
+            'Material didefinisikan sebagai $normalizedMockCategory.',
         components: [
           MaterialComponent(
             id: 'component_main',
             partName: title,
-            materialType: input.polymerCategory!,
+            materialType: normalizedMockCategory,
             resinCode: code,
             confidence: 'high',
             identificationBasis: 'user_declared',
@@ -392,7 +414,7 @@ class MockAnalysisRepository implements AnalysisRepository {
           ),
         ],
         materialTitle: title,
-        polymerCategory: input.polymerCategory!,
+        polymerCategory: normalizedMockCategory,
         polymerCode: code,
         meltingPoint: melting,
         avoidedEmission: emission,

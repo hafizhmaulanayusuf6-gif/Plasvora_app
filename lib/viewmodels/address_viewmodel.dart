@@ -26,6 +26,19 @@ class AddressViewModel extends ChangeNotifier {
 
   int? _selectedAddressId;
   int _stateVersion = 0;
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  void _safeNotifyListeners() {
+    if (!_disposed) {
+      notifyListeners();
+    }
+  }
 
   /// Alamat utama otoritatif dari respons backend.
   UserAddress? get defaultAddress {
@@ -48,14 +61,14 @@ class AddressViewModel extends ChangeNotifier {
   void selectAddress(int? addressId) {
     if (_selectedAddressId == addressId) return;
     _selectedAddressId = addressId;
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   void clearError() {
     if (_errorMessage == null && _fieldErrors.isEmpty) return;
     _errorMessage = null;
     _fieldErrors = const {};
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   /// Membersihkan seluruh data alamat pengguna yang tersimpan di memori saat logout
@@ -77,7 +90,7 @@ class AddressViewModel extends ChangeNotifier {
     _errorMessage = null;
     _fieldErrors = const {};
     if (hadUserState) {
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -88,26 +101,26 @@ class AddressViewModel extends ChangeNotifier {
     _isLoading = true;
     _errorMessage = null;
     _fieldErrors = const {};
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final fetched = await addressRepository.getAddresses();
       // Abaikan hasil load usang jika ada mutasi lebih baru atau clearUserData
-      if (requestVersion == _stateVersion) {
+      if (requestVersion == _stateVersion && !_disposed) {
         _addresses = fetched;
         _syncSelectedAddress();
       }
     } catch (e) {
-      if (requestVersion == _stateVersion) {
+      if (requestVersion == _stateVersion && !_disposed) {
         _errorMessage = _extractErrorMessage(
           e,
           fallback: 'Gagal memuat daftar alamat pengiriman.',
         );
       }
     } finally {
-      if (requestVersion == _stateVersion) {
+      if (requestVersion == _stateVersion && !_disposed) {
         _isLoading = false;
-        notifyListeners();
+        _safeNotifyListeners();
       }
     }
   }
@@ -125,10 +138,11 @@ class AddressViewModel extends ChangeNotifier {
   }) async {
     if (_isSaving) return null;
 
+    final mutationVersion = ++_stateVersion;
     _isSaving = true;
     _errorMessage = null;
     _fieldErrors = const {};
-    notifyListeners();
+    _safeNotifyListeners();
 
     UserAddress created;
     try {
@@ -144,27 +158,29 @@ class AddressViewModel extends ChangeNotifier {
         isDefault: isDefault,
       );
     } catch (e) {
+      if (mutationVersion != _stateVersion || _disposed) return null;
       _fieldErrors = _extractFieldErrors(e);
       _errorMessage = _extractErrorMessage(
         e,
         fallback: 'Gagal menambahkan alamat pengiriman.',
       );
       _isSaving = false;
-      notifyListeners();
+      _safeNotifyListeners();
       return null;
     }
 
+    if (mutationVersion != _stateVersion || _disposed) return null;
+
     // Mutasi berhasil di backend; refresh daftar dipisahkan agar kegagalan refresh tidak melaporkan mutasi gagal
-    final mutationVersion = ++_stateVersion;
     _selectedAddressId = created.id;
     try {
       final refreshed = await addressRepository.getAddresses();
-      if (mutationVersion == _stateVersion) {
+      if (mutationVersion == _stateVersion && !_disposed) {
         _addresses = refreshed;
         _syncSelectedAddress();
       }
     } catch (_) {
-      if (mutationVersion == _stateVersion) {
+      if (mutationVersion == _stateVersion && !_disposed) {
         final updatedList = List<UserAddress>.from(_addresses);
         if (created.isDefault) {
           for (var i = 0; i < updatedList.length; i++) {
@@ -179,13 +195,13 @@ class AddressViewModel extends ChangeNotifier {
             'Alamat berhasil disimpan, namun gagal menyegarkan daftar terbaru.';
       }
     } finally {
-      if (mutationVersion == _stateVersion) {
+      if (mutationVersion == _stateVersion && !_disposed) {
         _isSaving = false;
-        notifyListeners();
+        _safeNotifyListeners();
       }
     }
 
-    return created;
+    return mutationVersion == _stateVersion && !_disposed ? created : null;
   }
 
   Future<UserAddress?> updateAddress({
@@ -202,10 +218,11 @@ class AddressViewModel extends ChangeNotifier {
   }) async {
     if (_isSaving) return null;
 
+    final mutationVersion = ++_stateVersion;
     _isSaving = true;
     _errorMessage = null;
     _fieldErrors = const {};
-    notifyListeners();
+    _safeNotifyListeners();
 
     UserAddress updated;
     try {
@@ -222,26 +239,28 @@ class AddressViewModel extends ChangeNotifier {
         isDefault: isDefault,
       );
     } catch (e) {
+      if (mutationVersion != _stateVersion || _disposed) return null;
       _fieldErrors = _extractFieldErrors(e);
       _errorMessage = _extractErrorMessage(
         e,
         fallback: 'Gagal memperbarui alamat pengiriman.',
       );
       _isSaving = false;
-      notifyListeners();
+      _safeNotifyListeners();
       return null;
     }
 
+    if (mutationVersion != _stateVersion || _disposed) return null;
+
     // Mutasi berhasil di backend; refresh daftar dipisahkan agar kegagalan refresh tidak melaporkan mutasi gagal
-    final mutationVersion = ++_stateVersion;
     try {
       final refreshed = await addressRepository.getAddresses();
-      if (mutationVersion == _stateVersion) {
+      if (mutationVersion == _stateVersion && !_disposed) {
         _addresses = refreshed;
         _syncSelectedAddress();
       }
     } catch (_) {
-      if (mutationVersion == _stateVersion) {
+      if (mutationVersion == _stateVersion && !_disposed) {
         final updatedList = List<UserAddress>.from(_addresses);
         if (updated.isDefault) {
           for (var i = 0; i < updatedList.length; i++) {
@@ -262,60 +281,63 @@ class AddressViewModel extends ChangeNotifier {
             'Alamat berhasil diperbarui, namun gagal menyegarkan daftar terbaru.';
       }
     } finally {
-      if (mutationVersion == _stateVersion) {
+      if (mutationVersion == _stateVersion && !_disposed) {
         _isSaving = false;
-        notifyListeners();
+        _safeNotifyListeners();
       }
     }
 
-    return updated;
+    return mutationVersion == _stateVersion && !_disposed ? updated : null;
   }
 
   Future<bool> deleteAddress(int id) async {
     if (_isSaving) return false;
 
+    final mutationVersion = ++_stateVersion;
     _isSaving = true;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       await addressRepository.deleteAddress(id);
     } catch (e) {
+      if (mutationVersion != _stateVersion || _disposed) return false;
       _errorMessage = _extractErrorMessage(
         e,
         fallback: 'Gagal menghapus alamat pengiriman.',
       );
       _isSaving = false;
-      notifyListeners();
+      _safeNotifyListeners();
       return false;
     }
 
+    if (mutationVersion != _stateVersion || _disposed) return false;
+
     // Mutasi hapus berhasil di backend; selalu hapus referensi lokal lalu refresh otoritatif dari backend
-    final mutationVersion = ++_stateVersion;
     if (_selectedAddressId == id) {
       _selectedAddressId = null;
     }
     try {
       final refreshed = await addressRepository.getAddresses();
-      if (mutationVersion == _stateVersion) {
+      if (mutationVersion == _stateVersion && !_disposed) {
         _addresses = refreshed;
         _syncSelectedAddress();
       }
     } catch (_) {
-      if (mutationVersion == _stateVersion) {
+      if (mutationVersion == _stateVersion && !_disposed) {
         _addresses = _addresses.where((a) => a.id != id).toList();
         _syncSelectedAddress();
         _errorMessage =
             'Alamat berhasil dihapus, namun gagal menyegarkan daftar terbaru.';
       }
     } finally {
-      if (mutationVersion == _stateVersion) {
+      if (mutationVersion == _stateVersion && !_disposed) {
         _isSaving = false;
-        notifyListeners();
+        _safeNotifyListeners();
       }
     }
 
-    return true;
+    return mutationVersion == _stateVersion && !_disposed;
   }
 
   void _syncSelectedAddress() {

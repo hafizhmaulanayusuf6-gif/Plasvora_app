@@ -79,6 +79,7 @@ abstract class MaterialRepository {
   });
   Future<void> toggleFavorite(int id);
   Future<ImpactSummary> getImpactSummary();
+  void clearUserData();
 }
 
 class ApiMaterialRepository implements MaterialRepository {
@@ -325,6 +326,11 @@ class ApiMaterialRepository implements MaterialRepository {
     } else {
       _favoriteIds.add(id);
     }
+  }
+
+  @override
+  void clearUserData() {
+    _favoriteIds.clear();
   }
 
   @override
@@ -618,5 +624,14 @@ class MockMaterialRepository implements MaterialRepository {
       confirmedCount: 0,
       confirmedWeightKg: 0.0,
     );
+  }
+
+  @override
+  void clearUserData() {
+    for (var i = 0; i < _items.length; i++) {
+      if (_items[i].isFavorited) {
+        _items[i] = _items[i].copyWith(isFavorited: false);
+      }
+    }
   }
 }

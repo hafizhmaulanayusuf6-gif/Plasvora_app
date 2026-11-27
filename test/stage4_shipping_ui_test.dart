@@ -11,6 +11,8 @@ import 'package:plasvora/core/constants/app_assets.dart';
 import 'package:plasvora/core/network/api_client.dart';
 import 'package:plasvora/core/theme/app_theme.dart';
 import 'package:plasvora/core/widgets/destination_picker_sheet.dart';
+import 'package:plasvora/core/widgets/plasvora_header.dart';
+import 'package:plasvora/core/widgets/simple_page_app_bar.dart';
 import 'package:plasvora/models/impact_summary.dart';
 import 'package:plasvora/models/material_listing.dart';
 import 'package:plasvora/models/plastic_analysis.dart';
@@ -432,6 +434,9 @@ class _FakeMaterialRepository implements MaterialRepository {
 
   @override
   Future<void> toggleFavorite(int id) async {}
+
+  @override
+  void clearUserData() {}
 
   @override
   Future<ImpactSummary> getImpactSummary() async => ImpactSummary(
@@ -1527,6 +1532,125 @@ void main() {
           find.text('Pasangan lokasi asal pengiriman tidak konsisten.'),
           findsWidgets,
         );
+      },
+    );
+
+    testWidgets(
+      'AppBar uses SimplePageAppBar (not PlasvoraHeader) with dynamic titles and working back navigation',
+      (tester) async {
+        final listing = _sampleListing(id: 51);
+        final materialRepo = _FakeMaterialRepository(detailListing: listing);
+        final marketVm = MarketplaceViewModel(materialRepository: materialRepo);
+        final shippingRepo = _FakeShippingRepository();
+
+        // 1. New listing mode -> 'Tawarkan Material' + working back pop
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: Builder(
+              builder: (ctx) => Scaffold(
+                body: Center(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(ctx).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => CreateMaterialListingScreen(
+                            viewModel: marketVm,
+                            shippingRepository: shippingRepo,
+                          ),
+                        ),
+                      );
+                    },
+                    child: const Text('Buka Form Material'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('Buka Form Material'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(SimplePageAppBar), findsOneWidget);
+        expect(find.byType(PlasvoraHeader), findsNothing);
+        expect(
+          find.descendant(
+            of: find.byType(SimplePageAppBar),
+            matching: find.text('Tawarkan Material'),
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('Informasi Material'), findsOneWidget);
+
+        await tester.tap(
+          find.descendant(
+            of: find.byType(SimplePageAppBar),
+            matching: find.widgetWithIcon(IconButton, Icons.arrow_back),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(CreateMaterialListingScreen), findsNothing);
+        expect(find.text('Buka Form Material'), findsOneWidget);
+
+        // 2. Launched from AI Analysis -> 'Jual Material Ini'
+        const analysis = PlasticAnalysisResult(
+          id: 'an-appbar',
+          localAsset: AppAssets.petFlakes,
+          materialTitle: 'Botol HDPE AI',
+          polymerCategory: 'HDPE',
+          polymerCode: '#2',
+          meltingPoint: '130°C',
+          avoidedEmission: '1.8 kg CO2',
+          qualitativeNote: 'Siap dijual',
+          ideas: [],
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: CreateMaterialListingScreen(
+              viewModel: marketVm,
+              initialAnalysis: analysis,
+              shippingRepository: shippingRepo,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(SimplePageAppBar), findsOneWidget);
+        expect(find.byType(PlasvoraHeader), findsNothing);
+        expect(
+          find.descendant(
+            of: find.byType(SimplePageAppBar),
+            matching: find.text('Jual Material Ini'),
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('Botol HDPE AI'), findsOneWidget);
+
+        // 3. Edit mode -> 'Edit Listing'
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.lightTheme,
+            home: CreateMaterialListingScreen(
+              viewModel: marketVm,
+              existingListing: listing,
+              shippingRepository: shippingRepo,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(SimplePageAppBar), findsOneWidget);
+        expect(find.byType(PlasvoraHeader), findsNothing);
+        expect(
+          find.descendant(
+            of: find.byType(SimplePageAppBar),
+            matching: find.text('Edit Listing'),
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('Simpan Perubahan'), findsOneWidget);
+        expect(tester.takeException(), isNull);
       },
     );
   });

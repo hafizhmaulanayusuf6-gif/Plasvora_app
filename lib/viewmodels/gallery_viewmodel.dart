@@ -9,6 +9,21 @@ class GalleryViewModel extends ChangeNotifier {
 
   GalleryViewModel({required this.galleryRepository});
 
+  int _sessionVersion = 0;
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  void _safeNotifyListeners() {
+    if (!_disposed) {
+      notifyListeners();
+    }
+  }
+
   // ─── Public Feed State ────────────────────────────────────────────
   List<GalleryWork> _works = [];
   bool _isLoadingFeed = false;
@@ -81,10 +96,11 @@ class GalleryViewModel extends ChangeNotifier {
   Future<void> loadFeed({bool refresh = false}) async {
     if (_isLoadingFeed && !refresh) return;
 
+    final sessionVersion = _sessionVersion;
     final requestVersion = ++_feedRequestVersion;
     _isLoadingFeed = true;
     _feedError = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final result = await galleryRepository.fetchGallery(
@@ -94,7 +110,11 @@ class GalleryViewModel extends ChangeNotifier {
         page: 1,
       );
 
-      if (requestVersion != _feedRequestVersion) return;
+      if (requestVersion != _feedRequestVersion ||
+          sessionVersion != _sessionVersion ||
+          _disposed) {
+        return;
+      }
 
       _works = result.items;
       _feedPage = result.currentPage;
@@ -102,15 +122,25 @@ class GalleryViewModel extends ChangeNotifier {
       _hasLoadedFeed = true;
       _feedError = null;
     } on ApiException catch (e) {
-      if (requestVersion != _feedRequestVersion) return;
+      if (requestVersion != _feedRequestVersion ||
+          sessionVersion != _sessionVersion ||
+          _disposed) {
+        return;
+      }
       _feedError = e.message;
     } catch (_) {
-      if (requestVersion != _feedRequestVersion) return;
+      if (requestVersion != _feedRequestVersion ||
+          sessionVersion != _sessionVersion ||
+          _disposed) {
+        return;
+      }
       _feedError = 'Gagal memuat Galeri Karya. Silakan coba lagi.';
     } finally {
-      if (requestVersion == _feedRequestVersion) {
+      if (requestVersion == _feedRequestVersion &&
+          sessionVersion == _sessionVersion &&
+          !_disposed) {
         _isLoadingFeed = false;
-        notifyListeners();
+        _safeNotifyListeners();
       }
     }
   }
@@ -118,9 +148,10 @@ class GalleryViewModel extends ChangeNotifier {
   Future<void> loadMoreFeed() async {
     if (_isLoadingFeed || _isLoadingMoreFeed || !hasMoreFeed) return;
 
+    final sessionVersion = _sessionVersion;
     final requestVersion = _feedRequestVersion;
     _isLoadingMoreFeed = true;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final result = await galleryRepository.fetchGallery(
@@ -130,7 +161,11 @@ class GalleryViewModel extends ChangeNotifier {
         page: _feedPage + 1,
       );
 
-      if (requestVersion != _feedRequestVersion) return;
+      if (requestVersion != _feedRequestVersion ||
+          sessionVersion != _sessionVersion ||
+          _disposed) {
+        return;
+      }
 
       final existingIds = _works.map((e) => e.id).toSet();
       final appended =
@@ -139,15 +174,25 @@ class GalleryViewModel extends ChangeNotifier {
       _feedPage = result.currentPage;
       _feedLastPage = result.lastPage;
     } on ApiException catch (e) {
-      if (requestVersion != _feedRequestVersion) return;
+      if (requestVersion != _feedRequestVersion ||
+          sessionVersion != _sessionVersion ||
+          _disposed) {
+        return;
+      }
       _feedError = e.message;
     } catch (_) {
-      if (requestVersion != _feedRequestVersion) return;
+      if (requestVersion != _feedRequestVersion ||
+          sessionVersion != _sessionVersion ||
+          _disposed) {
+        return;
+      }
       _feedError = 'Gagal memuat halaman berikutnya.';
     } finally {
-      if (requestVersion == _feedRequestVersion) {
+      if (requestVersion == _feedRequestVersion &&
+          sessionVersion == _sessionVersion &&
+          !_disposed) {
         _isLoadingMoreFeed = false;
-        notifyListeners();
+        _safeNotifyListeners();
       }
     }
   }
@@ -193,35 +238,50 @@ class GalleryViewModel extends ChangeNotifier {
       return _detailCache[id];
     }
 
+    final sessionVersion = _sessionVersion;
     final version = (_detailRequestVersions[id] ?? 0) + 1;
     _detailRequestVersions[id] = version;
     _loadingDetailIds.add(id);
     _detailErrors.remove(id);
     _detailStatusCodes.remove(id);
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final detail = await galleryRepository.fetchWorkDetail(id);
-      if (_detailRequestVersions[id] != version) return null;
+      if (_detailRequestVersions[id] != version ||
+          sessionVersion != _sessionVersion ||
+          _disposed) {
+        return null;
+      }
 
       _detailCache[id] = detail;
       _syncWorkAcrossLists(detail);
       return detail;
     } on ApiException catch (e) {
-      if (_detailRequestVersions[id] != version) return null;
+      if (_detailRequestVersions[id] != version ||
+          sessionVersion != _sessionVersion ||
+          _disposed) {
+        return null;
+      }
       _detailErrors[id] = e.message;
       if (e.statusCode != null) {
         _detailStatusCodes[id] = e.statusCode!;
       }
       return null;
     } catch (_) {
-      if (_detailRequestVersions[id] != version) return null;
+      if (_detailRequestVersions[id] != version ||
+          sessionVersion != _sessionVersion ||
+          _disposed) {
+        return null;
+      }
       _detailErrors[id] = 'Gagal memuat detail karya.';
       return null;
     } finally {
-      if (_detailRequestVersions[id] == version) {
+      if (_detailRequestVersions[id] == version &&
+          sessionVersion == _sessionVersion &&
+          !_disposed) {
         _loadingDetailIds.remove(id);
-        notifyListeners();
+        _safeNotifyListeners();
       }
     }
   }
@@ -231,14 +291,19 @@ class GalleryViewModel extends ChangeNotifier {
   Future<void> loadMyWorks({bool refresh = false}) async {
     if (_isLoadingMyWorks && !refresh) return;
 
+    final sessionVersion = _sessionVersion;
     final requestVersion = ++_myWorksRequestVersion;
     _isLoadingMyWorks = true;
     _myWorksError = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final result = await galleryRepository.fetchMyWorks(page: 1);
-      if (requestVersion != _myWorksRequestVersion) return;
+      if (requestVersion != _myWorksRequestVersion ||
+          sessionVersion != _sessionVersion ||
+          _disposed) {
+        return;
+      }
 
       _myWorks = result.items;
       _myWorksPage = result.currentPage;
@@ -246,15 +311,25 @@ class GalleryViewModel extends ChangeNotifier {
       _hasLoadedMyWorks = true;
       _myWorksError = null;
     } on ApiException catch (e) {
-      if (requestVersion != _myWorksRequestVersion) return;
+      if (requestVersion != _myWorksRequestVersion ||
+          sessionVersion != _sessionVersion ||
+          _disposed) {
+        return;
+      }
       _myWorksError = e.message;
     } catch (_) {
-      if (requestVersion != _myWorksRequestVersion) return;
+      if (requestVersion != _myWorksRequestVersion ||
+          sessionVersion != _sessionVersion ||
+          _disposed) {
+        return;
+      }
       _myWorksError = 'Gagal memuat daftar karya Anda.';
     } finally {
-      if (requestVersion == _myWorksRequestVersion) {
+      if (requestVersion == _myWorksRequestVersion &&
+          sessionVersion == _sessionVersion &&
+          !_disposed) {
         _isLoadingMyWorks = false;
-        notifyListeners();
+        _safeNotifyListeners();
       }
     }
   }
@@ -262,15 +337,20 @@ class GalleryViewModel extends ChangeNotifier {
   Future<void> loadMoreMyWorks() async {
     if (_isLoadingMyWorks || _isLoadingMoreMyWorks || !hasMoreMyWorks) return;
 
+    final sessionVersion = _sessionVersion;
     final requestVersion = _myWorksRequestVersion;
     _isLoadingMoreMyWorks = true;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final result = await galleryRepository.fetchMyWorks(
         page: _myWorksPage + 1,
       );
-      if (requestVersion != _myWorksRequestVersion) return;
+      if (requestVersion != _myWorksRequestVersion ||
+          sessionVersion != _sessionVersion ||
+          _disposed) {
+        return;
+      }
 
       final existingIds = _myWorks.map((e) => e.id).toSet();
       final appended =
@@ -279,15 +359,25 @@ class GalleryViewModel extends ChangeNotifier {
       _myWorksPage = result.currentPage;
       _myWorksLastPage = result.lastPage;
     } on ApiException catch (e) {
-      if (requestVersion != _myWorksRequestVersion) return;
+      if (requestVersion != _myWorksRequestVersion ||
+          sessionVersion != _sessionVersion ||
+          _disposed) {
+        return;
+      }
       _myWorksError = e.message;
     } catch (_) {
-      if (requestVersion != _myWorksRequestVersion) return;
+      if (requestVersion != _myWorksRequestVersion ||
+          sessionVersion != _sessionVersion ||
+          _disposed) {
+        return;
+      }
       _myWorksError = 'Gagal memuat karya berikutnya.';
     } finally {
-      if (requestVersion == _myWorksRequestVersion) {
+      if (requestVersion == _myWorksRequestVersion &&
+          sessionVersion == _sessionVersion &&
+          !_disposed) {
         _isLoadingMoreMyWorks = false;
-        notifyListeners();
+        _safeNotifyListeners();
       }
     }
   }
@@ -297,7 +387,7 @@ class GalleryViewModel extends ChangeNotifier {
   void clearSubmitErrors() {
     _submitError = null;
     _fieldErrors = {};
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   Future<GalleryWork?> createWork({
@@ -312,10 +402,11 @@ class GalleryViewModel extends ChangeNotifier {
   }) async {
     if (_isSubmitting) return null;
 
+    final sessionVersion = _sessionVersion;
     _isSubmitting = true;
     _submitError = null;
     _fieldErrors = {};
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final created = await galleryRepository.createWork(
@@ -328,23 +419,30 @@ class GalleryViewModel extends ChangeNotifier {
         imagePaths: imagePaths,
         ownershipConfirmed: ownershipConfirmed,
       );
+      if (sessionVersion != _sessionVersion || _disposed) return null;
+
       _detailCache[created.id] = created;
       _myWorks = [created, ..._myWorks.where((w) => w.id != created.id)];
       _hasLoadedMyWorks = true;
       if (created.isApproved && _hasLoadedFeed) {
         await loadFeed(refresh: true);
+        if (sessionVersion != _sessionVersion || _disposed) return null;
       }
       return created;
     } on ApiException catch (e) {
+      if (sessionVersion != _sessionVersion || _disposed) return null;
       _submitError = e.message;
       _fieldErrors = _extractFieldErrors(e.errors);
       return null;
     } catch (_) {
+      if (sessionVersion != _sessionVersion || _disposed) return null;
       _submitError = 'Gagal mengirim karya. Silakan coba lagi.';
       return null;
     } finally {
-      _isSubmitting = false;
-      notifyListeners();
+      if (sessionVersion == _sessionVersion && !_disposed) {
+        _isSubmitting = false;
+        _safeNotifyListeners();
+      }
     }
   }
 
@@ -361,10 +459,11 @@ class GalleryViewModel extends ChangeNotifier {
   }) async {
     if (_isSubmitting) return null;
 
+    final sessionVersion = _sessionVersion;
     _isSubmitting = true;
     _submitError = null;
     _fieldErrors = {};
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final updated = await galleryRepository.updateWork(
@@ -378,6 +477,8 @@ class GalleryViewModel extends ChangeNotifier {
         newImagePaths: newImagePaths,
         removeImageIds: removeImageIds,
       );
+      if (sessionVersion != _sessionVersion || _disposed) return null;
+
       _detailCache[updated.id] = updated;
       if (updated.isApproved) {
         _syncWorkAcrossLists(updated);
@@ -390,37 +491,47 @@ class GalleryViewModel extends ChangeNotifier {
       ];
       return updated;
     } on ApiException catch (e) {
+      if (sessionVersion != _sessionVersion || _disposed) return null;
       _submitError = e.message;
       _fieldErrors = _extractFieldErrors(e.errors);
       return null;
     } catch (_) {
+      if (sessionVersion != _sessionVersion || _disposed) return null;
       _submitError = 'Gagal memperbarui karya. Silakan coba lagi.';
       return null;
     } finally {
-      _isSubmitting = false;
-      notifyListeners();
+      if (sessionVersion == _sessionVersion && !_disposed) {
+        _isSubmitting = false;
+        _safeNotifyListeners();
+      }
     }
   }
 
   Future<String?> deleteWork(int id) async {
     if (_deletingWorkIds.contains(id)) return null;
 
+    final sessionVersion = _sessionVersion;
     _deletingWorkIds.add(id);
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       await galleryRepository.deleteWork(id);
+      if (sessionVersion != _sessionVersion || _disposed) return null;
       _works = _works.where((w) => w.id != id).toList();
       _myWorks = _myWorks.where((w) => w.id != id).toList();
       _detailCache.remove(id);
       return null;
     } on ApiException catch (e) {
+      if (sessionVersion != _sessionVersion || _disposed) return null;
       return e.message;
     } catch (_) {
+      if (sessionVersion != _sessionVersion || _disposed) return null;
       return 'Gagal menghapus karya. Silakan coba lagi.';
     } finally {
-      _deletingWorkIds.remove(id);
-      notifyListeners();
+      if (sessionVersion == _sessionVersion && !_disposed) {
+        _deletingWorkIds.remove(id);
+        _safeNotifyListeners();
+      }
     }
   }
 
@@ -434,6 +545,7 @@ class GalleryViewModel extends ChangeNotifier {
     final current = _findWork(id);
     if (current == null) return null;
 
+    final sessionVersion = _sessionVersion;
     final previousLiked = current.likedByMe;
     final previousCount = current.likesCount;
 
@@ -444,10 +556,11 @@ class GalleryViewModel extends ChangeNotifier {
 
     _likingWorkIds.add(id);
     _applyLikeUpdate(id, liked: optimisticLiked, likesCount: optimisticCount);
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final result = await galleryRepository.toggleLike(id);
+      if (sessionVersion != _sessionVersion || _disposed) return null;
       _applyLikeUpdate(
         id,
         liked: result.liked,
@@ -455,6 +568,7 @@ class GalleryViewModel extends ChangeNotifier {
       );
       return null;
     } on ApiException catch (e) {
+      if (sessionVersion != _sessionVersion || _disposed) return null;
       _applyLikeUpdate(
         id,
         liked: previousLiked,
@@ -462,6 +576,7 @@ class GalleryViewModel extends ChangeNotifier {
       );
       return e.message;
     } catch (_) {
+      if (sessionVersion != _sessionVersion || _disposed) return null;
       _applyLikeUpdate(
         id,
         liked: previousLiked,
@@ -469,15 +584,24 @@ class GalleryViewModel extends ChangeNotifier {
       );
       return 'Gagal memperbarui status suka. Silakan coba lagi.';
     } finally {
-      _likingWorkIds.remove(id);
-      notifyListeners();
+      if (sessionVersion == _sessionVersion && !_disposed) {
+        _likingWorkIds.remove(id);
+        _safeNotifyListeners();
+      }
     }
   }
 
   // ─── Session Isolation on Logout ──────────────────────────────────
 
   void clearUserData() {
+    _sessionVersion++;
+    _feedRequestVersion++;
     _myWorksRequestVersion++;
+
+    _isLoadingFeed = false;
+    _isLoadingMoreFeed = false;
+    _feedError = null;
+
     _myWorks = [];
     _isLoadingMyWorks = false;
     _isLoadingMoreMyWorks = false;
@@ -500,9 +624,23 @@ class GalleryViewModel extends ChangeNotifier {
 
     // Strip user-specific likedByMe flags from public feed items so a subsequent
     // account never sees the previous user's liked state.
-    _works = _works.map((w) => w.copyWith(likedByMe: false)).toList();
+    final hadFeedFilters =
+        _searchQuery.trim().isNotEmpty ||
+        _selectedDifficulty != null ||
+        _sortBy != 'latest';
+    _searchQuery = '';
+    _selectedDifficulty = null;
+    _sortBy = 'latest';
+    if (hadFeedFilters) {
+      _works = [];
+      _hasLoadedFeed = false;
+      _feedPage = 1;
+      _feedLastPage = 1;
+    } else {
+      _works = _works.map((w) => w.copyWith(likedByMe: false)).toList();
+    }
 
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   // ─── Internal Helpers ─────────────────────────────────────────────

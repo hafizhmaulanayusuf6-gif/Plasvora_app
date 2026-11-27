@@ -53,15 +53,57 @@ class MaterialRequestViewModel extends ChangeNotifier {
   List<MaterialRequestItem> _requests = [];
   List<MaterialRequestItem> get requests => _requests;
 
+  int _sessionVersion = 0;
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  void _safeNotifyListeners() {
+    if (!_disposed) {
+      notifyListeners();
+    }
+  }
+
+  void clearUserData() {
+    _sessionVersion++;
+    final hadState =
+        currentUserId != null ||
+        _requests.isNotEmpty ||
+        _selectedCategory != 'Semua' ||
+        _selectedCondition != 'Semua' ||
+        _locationFilter != null ||
+        _isLoading ||
+        _isSubmitting ||
+        _errorMessage != null;
+
+    currentUserId = null;
+    _requests = [];
+    _selectedCategory = 'Semua';
+    _selectedCondition = 'Semua';
+    _locationFilter = null;
+    _isLoading = false;
+    _isSubmitting = false;
+    _errorMessage = null;
+
+    if (hadState) {
+      _safeNotifyListeners();
+    }
+  }
+
   bool get hasActiveFilters =>
       _selectedCategory != 'Semua' ||
       _selectedCondition != 'Semua' ||
       (_locationFilter != null && _locationFilter!.trim().isNotEmpty);
 
   Future<void> loadRequests() async {
+    final sessionVersion = _sessionVersion;
     _isLoading = true;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final categoryQuery = _mapCategoryForBackend(_selectedCategory);
@@ -73,13 +115,17 @@ class MaterialRequestViewModel extends ChangeNotifier {
         condition: conditionQuery,
         location: _locationFilter,
       );
+      if (sessionVersion != _sessionVersion || _disposed) return;
       _requests = items;
     } catch (e) {
+      if (sessionVersion != _sessionVersion || _disposed) return;
       _errorMessage = _formatError(e);
       _requests = [];
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (sessionVersion == _sessionVersion && !_disposed) {
+        _isLoading = false;
+        _safeNotifyListeners();
+      }
     }
   }
 
@@ -168,13 +214,14 @@ class MaterialRequestViewModel extends ChangeNotifier {
 
     if (validation != null) {
       _errorMessage = validation;
-      notifyListeners();
+      _safeNotifyListeners();
       return false;
     }
 
+    final sessionVersion = _sessionVersion;
     _isSubmitting = true;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final normalizedCategory = _mapCategoryForBackend(category)!;
@@ -185,15 +232,17 @@ class MaterialRequestViewModel extends ChangeNotifier {
         generalLocation: location.trim(),
         intendedUse: intendedUse.trim(),
       );
+      if (sessionVersion != _sessionVersion || _disposed) return false;
 
       _requests.insert(0, newItem);
       _isSubmitting = false;
-      notifyListeners();
+      _safeNotifyListeners();
       return true;
     } catch (e) {
+      if (sessionVersion != _sessionVersion || _disposed) return false;
       _errorMessage = _formatError(e);
       _isSubmitting = false;
-      notifyListeners();
+      _safeNotifyListeners();
       return false;
     }
   }
@@ -206,9 +255,10 @@ class MaterialRequestViewModel extends ChangeNotifier {
     String? location,
     String? intendedUse,
   }) async {
+    final sessionVersion = _sessionVersion;
     _isSubmitting = true;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final normalizedCategory =
@@ -221,37 +271,42 @@ class MaterialRequestViewModel extends ChangeNotifier {
         generalLocation: location?.trim(),
         intendedUse: intendedUse?.trim(),
       );
+      if (sessionVersion != _sessionVersion || _disposed) return false;
 
       final index = _requests.indexWhere((r) => r.id == id);
       if (index != -1) {
         _requests[index] = updated;
       }
       _isSubmitting = false;
-      notifyListeners();
+      _safeNotifyListeners();
       return true;
     } catch (e) {
+      if (sessionVersion != _sessionVersion || _disposed) return false;
       _errorMessage = _formatError(e);
       _isSubmitting = false;
-      notifyListeners();
+      _safeNotifyListeners();
       return false;
     }
   }
 
   Future<bool> cancelRequest(int id) async {
+    final sessionVersion = _sessionVersion;
     _isSubmitting = true;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       await transactionRepository.cancelMaterialRequest(id);
+      if (sessionVersion != _sessionVersion || _disposed) return false;
       _requests.removeWhere((r) => r.id == id);
       _isSubmitting = false;
-      notifyListeners();
+      _safeNotifyListeners();
       return true;
     } catch (e) {
+      if (sessionVersion != _sessionVersion || _disposed) return false;
       _errorMessage = _formatError(e);
       _isSubmitting = false;
-      notifyListeners();
+      _safeNotifyListeners();
       return false;
     }
   }

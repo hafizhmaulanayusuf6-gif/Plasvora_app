@@ -6,6 +6,8 @@ import '../repositories/material_repository.dart';
 class MarketplaceViewModel extends ChangeNotifier {
   final MaterialRepository materialRepository;
   Timer? _searchDebounce;
+  int _sessionVersion = 0;
+  bool _disposed = false;
 
   MarketplaceViewModel({required this.materialRepository}) {
     loadListings();
@@ -13,8 +15,58 @@ class MarketplaceViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _searchDebounce?.cancel();
     super.dispose();
+  }
+
+  void _safeNotifyListeners() {
+    if (!_disposed) {
+      notifyListeners();
+    }
+  }
+
+  void clearUserData() {
+    _sessionVersion++;
+    _searchDebounce?.cancel();
+    materialRepository.clearUserData();
+
+    final hadUserFilters =
+        _selectedCategory != 'Semua' ||
+        _selectedCondition != 'Semua' ||
+        _minWeight != null ||
+        _maxWeight != null ||
+        (_locationFilter != null && _locationFilter!.trim().isNotEmpty) ||
+        _searchQuery.isNotEmpty;
+    final hadFavorite = _listings.any((item) => item.isFavorited);
+    final hadState =
+        hadUserFilters ||
+        hadFavorite ||
+        _isLoading ||
+        _isSaving ||
+        _errorMessage != null;
+
+    if (hadUserFilters) {
+      _listings = [];
+    } else if (hadFavorite) {
+      _listings = _listings
+          .map((item) => item.isFavorited ? item.copyWith(isFavorited: false) : item)
+          .toList();
+    }
+
+    _selectedCategory = 'Semua';
+    _selectedCondition = 'Semua';
+    _minWeight = null;
+    _maxWeight = null;
+    _locationFilter = null;
+    _searchQuery = '';
+    _isLoading = false;
+    _isSaving = false;
+    _errorMessage = null;
+
+    if (hadState) {
+      _safeNotifyListeners();
+    }
   }
 
   final List<String> categories = const [
@@ -81,9 +133,10 @@ class MarketplaceViewModel extends ChangeNotifier {
   }
 
   Future<void> loadListings() async {
+    final sessionVersion = _sessionVersion;
     _isLoading = true;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       // BUG-09: Petakan label UI 'Semua' -> null dan 'Lainnya' -> 'OTHER' saat memfilter API
@@ -100,13 +153,17 @@ class MarketplaceViewModel extends ChangeNotifier {
         maxWeight: _maxWeight,
         location: _locationFilter,
       );
+      if (sessionVersion != _sessionVersion || _disposed) return;
       _listings = items;
     } catch (e) {
+      if (sessionVersion != _sessionVersion || _disposed) return;
       _errorMessage = e.toString().replaceFirst('ApiException: ', '');
       _listings = [];
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (sessionVersion == _sessionVersion && !_disposed) {
+        _isLoading = false;
+        _safeNotifyListeners();
+      }
     }
   }
 
@@ -161,12 +218,14 @@ class MarketplaceViewModel extends ChangeNotifier {
   }
 
   Future<void> toggleFavorite(int id) async {
+    final sessionVersion = _sessionVersion;
     await materialRepository.toggleFavorite(id);
+    if (sessionVersion != _sessionVersion || _disposed) return;
     final index = _listings.indexWhere((element) => element.id == id);
     if (index != -1) {
       final item = _listings[index];
       _listings[index] = item.copyWith(isFavorited: !item.isFavorited);
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -183,10 +242,11 @@ class MarketplaceViewModel extends ChangeNotifier {
     String? originLabel,
     String? imagePath,
   }) async {
+    final sessionVersion = _sessionVersion;
     _isLoading = true;
     _isSaving = true;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       // BUG-09: Normalisasi kategori 'Lainnya' -> 'OTHER'
@@ -208,19 +268,23 @@ class MarketplaceViewModel extends ChangeNotifier {
         originLabel: originLabel,
         imagePath: imagePath,
       );
+      if (sessionVersion != _sessionVersion || _disposed) return false;
       _listings.insert(0, newListing);
-      notifyListeners();
+      _safeNotifyListeners();
       return true;
     } on ArgumentError {
       rethrow;
     } catch (e) {
+      if (sessionVersion != _sessionVersion || _disposed) return false;
       _errorMessage = e.toString().replaceFirst('ApiException: ', '');
-      notifyListeners();
+      _safeNotifyListeners();
       return false;
     } finally {
-      _isLoading = false;
-      _isSaving = false;
-      notifyListeners();
+      if (sessionVersion == _sessionVersion && !_disposed) {
+        _isLoading = false;
+        _isSaving = false;
+        _safeNotifyListeners();
+      }
     }
   }
 
@@ -241,9 +305,10 @@ class MarketplaceViewModel extends ChangeNotifier {
   }) async {
     if (_isSaving) return null;
 
+    final sessionVersion = _sessionVersion;
     _isSaving = true;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final normalizedCategory = category == null
@@ -268,6 +333,7 @@ class MarketplaceViewModel extends ChangeNotifier {
         clearOrigin: clearOrigin,
         imagePath: imagePath,
       );
+      if (sessionVersion != _sessionVersion || _disposed) return null;
 
       final index = _listings.indexWhere((element) => element.id == id);
       if (index != -1) {
@@ -277,11 +343,14 @@ class MarketplaceViewModel extends ChangeNotifier {
     } on ArgumentError {
       rethrow;
     } catch (e) {
+      if (sessionVersion != _sessionVersion || _disposed) return null;
       _errorMessage = e.toString().replaceFirst('ApiException: ', '');
       return null;
     } finally {
-      _isSaving = false;
-      notifyListeners();
+      if (sessionVersion == _sessionVersion && !_disposed) {
+        _isSaving = false;
+        _safeNotifyListeners();
+      }
     }
   }
 }
